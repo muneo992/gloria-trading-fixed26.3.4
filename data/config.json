@@ -1,0 +1,12 @@
+{
+  "site": {
+    "title": "Reference Vehicle Marketplace",
+    "language": "en",
+    "currency": "USD",
+    "steering": "RHD only"
+  },
+  "filters": {
+    "sort_default": "date_desc",
+    "items_per_page": 12
+  }
+}

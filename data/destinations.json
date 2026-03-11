@@ -1,0 +1,34 @@
+{
+  "countries": [
+    {
+      "code": "GH",
+      "name": "Ghana",
+      "ports": [
+        {
+          "code": "TEMA",
+          "name": "Tema"
+        }
+      ]
+    },
+    {
+      "code": "NG",
+      "name": "Nigeria",
+      "ports": [
+        {
+          "code": "LAGOS",
+          "name": "Lagos"
+        }
+      ]
+    },
+    {
+      "code": "BJ",
+      "name": "Benin",
+      "ports": [
+        {
+          "code": "COTONOU",
+          "name": "Cotonou"
+        }
+      ]
+    }
+  ]
+}
