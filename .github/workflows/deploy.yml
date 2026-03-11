@@ -12,12 +12,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy via FTP
+      - name: Deploy via FTP (FTPS)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
+          protocol: ftps
+          port: 21
           server-dir: /home/gltr/www/
           exclude: |
             **/.git*
