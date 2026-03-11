@@ -1,0 +1,77 @@
+/* Blocksy Theme Aesthetic - Minimal Design */
+
+:root {
+  --color-primary: #0066cc;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666;
+  --color-bg-light: #f8f9fa;
+  --color-border: #e5e5e5;
+}
+
+/* Typography */
+body {
+  letter-spacing: 0.3px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.5px;
+}
+
+/* Minimal buttons */
+.btn {
+  letter-spacing: 0.3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Micro interactions */
+a {
+  transition: color 0.3s ease;
+}
+
+button {
+  transition: all 0.3s ease;
+}
+
+input, select, textarea {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Grid-based layout */
+.features-grid,
+.info-grid,
+.vehicle-grid {
+  grid-auto-rows: minmax(auto, max-content);
+}
+
+/* Whitespace */
+section {
+  padding: 3rem 0;
+}
+
+/* Card design */
+.feature-card,
+.info-box,
+.vehicle-card {
+  border: 1px solid var(--color-border);
+}
+
+.feature-card:hover,
+.vehicle-card:hover {
+  border-color: var(--color-primary);
+}
+
+/* Focus states */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
