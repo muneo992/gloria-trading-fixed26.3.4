@@ -26,4 +26,4 @@ jobs:
             --exclude='.github' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/www/
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/www/usedcars-ghana.com/
