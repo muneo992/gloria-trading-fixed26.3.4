@@ -1,0 +1,9 @@
+# PHPセッションによるアクセス制御
+# このフォルダはPHPログイン認証で保護されています
+Options -Indexes
+
+# 直接アクセス禁止（PHPファイル以外）
+<FilesMatch "^(?!.*\.php$)">
+  Order Allow,Deny
+  Allow from all
+</FilesMatch>
