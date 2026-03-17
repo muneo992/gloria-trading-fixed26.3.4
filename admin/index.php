@@ -2,7 +2,13 @@
 session_start();
 
 // --- 設定 ---
-define('ADMIN_PASSWORD', 'gloria2025'); // ← ここでパスワードを変更してください
+// パスワードは環境変数から読み込みます（.htaccessで設定）
+// GitHubにパスワードが公開されないよう、直接記述しないでください
+$admin_password = getenv('GLORIA_ADMIN_PASSWORD');
+if (empty($admin_password)) {
+    $admin_password = 'change-me-in-htaccess'; // フォールバック（本番では必ず.htaccessで設定）
+}
+define('ADMIN_PASSWORD', $admin_password);
 define('VEHICLES_JSON', __DIR__ . '/../data/vehicles.json');
 define('IMAGES_DIR', __DIR__ . '/../images/vehicles/');
 define('IMAGES_URL', '../images/vehicles/');

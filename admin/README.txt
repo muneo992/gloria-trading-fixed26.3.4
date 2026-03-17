@@ -6,13 +6,15 @@ Gloria Trading 車両管理画面 - 使い方
 ブラウザで以下のURLを開いてください：
   https://あなたのドメイン/admin/
 
-【初期パスワード】
-  gloria2025
-
-【パスワードの変更方法】
-  admin/index.php をテキストエディタで開き、
-  以下の行のパスワードを変更してください：
-  define('ADMIN_PASSWORD', 'gloria2025');
+【パスワードの設定方法】
+  パスワードはサーバーの admin/.htaccess ファイルで設定します。
+  .htaccess に以下の行を追加してください：
+  
+    SetEnv GLORIA_ADMIN_PASSWORD あなたの新しいパスワード
+  
+  ※ セキュリティのため、パスワードはGitHubには保存しません。
+  ※ さくらのレンタルサーバーのFTPまたはファイルマネージャーで
+     admin/.htaccess を直接編集してください。
 
 【できること】
   1. 車両の追加・編集・削除
@@ -32,6 +34,6 @@ Gloria Trading 車両管理画面 - 使い方
   admin/
     index.php  - 車両一覧・ログイン画面
     edit.php   - 車両追加・編集画面
-    .htaccess  - セキュリティ設定
+    .htaccess  - セキュリティ設定・パスワード環境変数
 
 ====================================================
