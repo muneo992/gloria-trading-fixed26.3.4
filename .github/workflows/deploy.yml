@@ -22,8 +22,7 @@ jobs:
           rsync -avz --delete \
             --exclude='.git*' \
             --exclude='.github' \
+            --exclude='admin/.htaccess' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/www/usedcars-ghana.com/
-
-  
