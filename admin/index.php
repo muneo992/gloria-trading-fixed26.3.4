@@ -2,11 +2,13 @@
 session_start();
 
 // --- 設定 ---
-// パスワードは環境変数から読み込みます（.htaccessで設定）
-// GitHubにパスワードが公開されないよう、直接記述しないでください
-$admin_password = getenv('GLORIA_ADMIN_PASSWORD');
-if (empty($admin_password)) {
-    $admin_password = 'change-me-in-htaccess'; // フォールバック（本番では必ず.htaccessで設定）
+// パスワードは admin/password.txt から読み込みます
+// このファイルはGitHubには含まれません（サーバー上のみ）
+$password_file = __DIR__ . '/password.txt';
+if (file_exists($password_file)) {
+    $admin_password = trim(file_get_contents($password_file));
+} else {
+    $admin_password = 'change-me'; // password.txtが存在しない場合のフォールバック
 }
 define('ADMIN_PASSWORD', $admin_password);
 define('VEHICLES_JSON', __DIR__ . '/../data/vehicles.json');
