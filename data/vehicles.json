@@ -15,7 +15,7 @@
       "basis_from": "2023-01",
       "basis_to": "2023-06",
       "disclaimer_short": "Reference vehicle only. Not in stock. Photo for reference.",
-      "gallery": ["images/vehicles/ref-001-1.jpg"]
+      "gallery": []
     },
     {
       "ref_id": "REF-002",
@@ -32,7 +32,7 @@
       "basis_from": "2023-02",
       "basis_to": "2023-07",
       "disclaimer_short": "Reference vehicle only. Not in stock. Photo for reference.",
-      "gallery": ["images/vehicles/ref-002-1.jpg"]
+      "gallery": []
     },
     {
       "ref_id": "REF-003",
@@ -49,7 +49,7 @@
       "basis_from": "2023-03",
       "basis_to": "2023-08",
       "disclaimer_short": "Reference vehicle only. Not in stock. Photo for reference.",
-      "gallery": ["images/vehicles/ref-003-1.jpg"]
+      "gallery": []
     },
     {
       "ref_id": "REF-004",
@@ -66,7 +66,7 @@
       "basis_from": "2023-01",
       "basis_to": "2023-06",
       "disclaimer_short": "Reference vehicle only. Not in stock. Photo for reference.",
-      "gallery": ["images/vehicles/ref-004-1.jpg"]
+      "gallery": []
     },
     {
       "ref_id": "REF-005",
@@ -83,7 +83,7 @@
       "basis_from": "2023-04",
       "basis_to": "2023-09",
       "disclaimer_short": "Reference vehicle only. Not in stock. Photo for reference.",
-      "gallery": ["images/vehicles/ref-005-1.jpg"]
+      "gallery": []
     }
   ]
 }
