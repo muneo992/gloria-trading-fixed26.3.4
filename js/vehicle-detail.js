@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
       // vehicles.json is { "vehicles": [...] }
       const vehicles = data.vehicles || data;
       const vehicle = vehicles.find(v => (v.ref_id || v.ref) === ref);
+
+      if (!vehicle) {
         const titleEl = document.getElementById("vehicle-title");
         if (titleEl) titleEl.textContent = "Vehicle not found";
         return;
