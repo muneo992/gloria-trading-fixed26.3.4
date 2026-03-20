@@ -350,11 +350,7 @@ textarea { resize: vertical; min-height: 80px; }
             <img src="<?= htmlspecialchars('../' . $img_path) ?>" alt="">
             <?php if ($i === 0): ?><span class="badge">メイン</span><?php endif; ?>
             <?php if ($is_edit): ?>
-            <form method="post" style="display:inline;" onsubmit="return confirm('この画像を削除しますか？');">
-              <input type="hidden" name="action" value="delete_image">
-              <input type="hidden" name="img_path" value="<?= htmlspecialchars($img_path) ?>">
-              <button type="submit" class="del-btn">✕</button>
-            </form>
+            <button type="button" class="del-btn" onclick="deleteImage('<?= htmlspecialchars($img_path, ENT_QUOTES) ?>')">✕</button>
             <?php endif; ?>
             <?php if ($i > 0): ?>
             <button type="button" class="move-btn" onclick="moveImageUp(this)">↑ 前へ</button>
@@ -429,6 +425,24 @@ function updateGalleryJson() {
   const items = document.querySelectorAll('#gallery-grid .gallery-item');
   const paths = Array.from(items).map(el => el.dataset.path);
   document.getElementById('gallery_json').value = JSON.stringify(paths);
+}
+
+// 画像削除（Ajaxで送信）
+function deleteImage(imgPath) {
+  if (!confirm('この画像を削除しますか？')) return;
+  const form = document.createElement('form');
+  form.method = 'post';
+  form.style.display = 'none';
+  const actionInput = document.createElement('input');
+  actionInput.name = 'action';
+  actionInput.value = 'delete_image';
+  const pathInput = document.createElement('input');
+  pathInput.name = 'img_path';
+  pathInput.value = imgPath;
+  form.appendChild(actionInput);
+  form.appendChild(pathInput);
+  document.body.appendChild(form);
+  form.submit();
 }
 
 function updateBadges() {
