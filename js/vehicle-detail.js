@@ -5,7 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
   fetch("data/vehicles.json")
     .then(response => response.json())
     .then(data => {
-      // vehicles.json is { "vehicles": [...] }
       const vehicles = data.vehicles || data;
       const vehicle = vehicles.find(v => (v.ref_id || v.ref) === ref);
 
@@ -17,30 +16,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
+      // タイトル・Ref ID
       set("vehicle-title", vehicle.display_name_en);
-      set("vehicle-ref", vehicle.ref_id || vehicle.ref || "-");
-      set("vehicle-year", vehicle.year || "-");
-      set("vehicle-mileage", vehicle.mileage_km != null ? vehicle.mileage_km.toLocaleString() + " km" : "-");
-      set("vehicle-fuel", vehicle.fuel_type || "-");
-      set("vehicle-transmission", vehicle.transmission || "-");
-      set("vehicle-body", vehicle.body_type || "-");
-      set("vehicle-make", vehicle.make || "-");
-      set("vehicle-model", vehicle.model || "-");
+      set("ref-id", vehicle.ref_id || vehicle.ref || "-");
+      set("breadcrumb-title", vehicle.display_name_en);
 
+      // スペック（HTMLのIDに合わせる）
+      set("spec-make", vehicle.make || "-");
+      set("spec-model", vehicle.model || "-");
+      set("spec-year", vehicle.year || "-");
+      set("spec-body-type", vehicle.body_type || "-");
+      set("spec-fuel-type", vehicle.fuel_type || "-");
+      set("spec-transmission", vehicle.transmission || "-");
+      set("spec-mileage", vehicle.mileage_km != null ? vehicle.mileage_km.toLocaleString() + " km" : "-");
+
+      // 価格
       if (vehicle.price_low_usd != null) set("price-low", "$" + vehicle.price_low_usd.toLocaleString());
       if (vehicle.price_high_usd != null) set("price-high", "$" + vehicle.price_high_usd.toLocaleString());
 
-      const basisEl = document.getElementById("price-basis");
-      if (basisEl) {
-        if (vehicle.basis_from && vehicle.basis_to) {
-          basisEl.textContent = vehicle.basis_from + " - " + vehicle.basis_to;
-        } else if (vehicle.basis) {
-          basisEl.textContent = vehicle.basis;
-        }
-      }
+      // 参照期間
+      set("basis-from", vehicle.basis_from || "N/A");
+      set("basis-to", vehicle.basis_to || "N/A");
 
+      // 免責事項
       if (vehicle.disclaimer_short) set("vehicle-disclaimer", vehicle.disclaimer_short);
 
+      // メイン画像
       const mainImage = document.getElementById("main-image");
       if (mainImage) {
         if (vehicle.gallery && vehicle.gallery.length > 0) {
@@ -51,7 +52,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      const thumbContainer = document.getElementById("gallery-thumbs");
+      // サムネイル
+      const thumbContainer = document.getElementById("thumbnail-gallery");
       if (thumbContainer && vehicle.gallery && vehicle.gallery.length > 1) {
         vehicle.gallery.forEach((src, i) => {
           const img = document.createElement("img");
@@ -63,14 +65,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      const rfqLink = document.getElementById("rfq-link");
-      if (rfqLink) rfqLink.href = "rfq.html?ref=" + (vehicle.ref_id || vehicle.ref);
-
-      const waLink = document.getElementById("whatsapp-link");
-      if (waLink) {
+      // WhatsApp・RFQリンク
+      const waBtn = document.getElementById("wa-button");
+      if (waBtn) {
         const waText = encodeURIComponent("Hello, I am interested in: " + vehicle.display_name_en + " (Ref: " + (vehicle.ref_id || vehicle.ref) + ")");
-        waLink.href = "https://wa.me/819076671825?text=" + waText;
+        waBtn.onclick = () => window.open("https://wa.me/819076671825?text=" + waText, "_blank");
       }
+
+      const rfqLink = document.getElementById("formal-rfq-link");
+      if (rfqLink) rfqLink.href = "rfq.html?ref=" + (vehicle.ref_id || vehicle.ref);
     })
     .catch(err => console.error("Failed to load vehicle data:", err));
 });
