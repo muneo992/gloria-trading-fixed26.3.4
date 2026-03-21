@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $h_lower = mb_strtolower(trim($h));
                     foreach ($header_keywords as $field => $keywords) {
                         foreach ($keywords as $kw) {
-                            if (str_contains($h_lower, mb_strtolower($kw))) {
+                            if (strpos($h_lower, mb_strtolower($kw)) !== false) {
                                 $col_map[$field] = $i;
                                 break 2;
                             }
