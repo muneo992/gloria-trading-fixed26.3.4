@@ -436,12 +436,10 @@ tr:hover td { background: #fafbff; }
             <p>現在の全車両データをCSVの内容で完全に置き換えます。<strong style="color:#dc3545;">既存データは削除されます。</strong></p>
           </label>
         </div>
+        <input type="hidden" name="action" value="confirm_import">
         <div class="form-actions">
-          <form method="post" style="display:inline;">
-            <input type="hidden" name="action" value="cancel_import">
-            <button type="submit" class="btn btn-secondary">← やり直す</button>
-          </form>
-          <button type="submit" form="confirm-form" class="btn btn-success">✅ インポートを実行する (<?= count($preview) ?>件)</button>
+          <button type="button" class="btn btn-secondary" onclick="cancelImport()">← やり直す</button>
+          <button type="submit" class="btn btn-success">✅ インポートを実行する (<?= count($preview) ?>件)</button>
         </div>
       </form>
     </div>
@@ -451,6 +449,18 @@ tr:hover td { background: #fafbff; }
 </div>
 
 <script>
+function cancelImport() {
+  const form = document.createElement('form');
+  form.method = 'post';
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'action';
+  input.value = 'cancel_import';
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+}
+
 const fileInput = document.getElementById('csv-file');
 const previewBtn = document.getElementById('preview-btn');
 const fileNameDiv = document.getElementById('file-name');
