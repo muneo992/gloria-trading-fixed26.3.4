@@ -24,6 +24,8 @@ jobs:
             --exclude='.github' \
             --exclude='admin/.htaccess' \
             --exclude='admin/password.txt' \
+            --exclude='data/vehicles.json' \
+            --exclude='images/vehicles/' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/www/usedcars-ghana.com/
