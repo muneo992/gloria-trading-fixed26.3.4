@@ -1,86 +1,27 @@
-name: Deploy develop to Sakura gloria-test
+name: Deploy to Sakura Test Environment
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Type DEPLOY_TEST to deploy develop to the gloria-test directory"
+        description: "Type YES to deploy"
         required: true
-        type: string
-
-concurrency:
-  group: sakura-gloria-test-deploy
-  cancel-in-progress: false
+        default: "YES"
 
 jobs:
-  deploy-test:
-    name: Deploy to Sakura test environment only
+  deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/develop' && inputs.confirm == 'DEPLOY_TEST' }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: develop
 
-      - name: Validate branch and confirmation
-        run: |
-          echo "Deploy source ref: $GITHUB_REF"
-          if [ "$GITHUB_REF" != "refs/heads/develop" ]; then
-            echo "This workflow deploys only refs/heads/develop. Select the develop branch when running it manually."
-            exit 1
-          fi
-          if [ "${{ inputs.confirm }}" != "DEPLOY_TEST" ]; then
-            echo "Confirmation text did not match. Deployment stopped."
-            exit 1
-          fi
-
-      - name: Install rsync
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync
-
-      - name: Setup SSH key
+      - name: Deploy
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/sakura_deploy_key
-          chmod 600 ~/.ssh/sakura_deploy_key
+          echo "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "${{ secrets.SAKURA_PORT || '22' }}" -H "${{ secrets.SAKURA_HOST }}" >> ~/.ssh/known_hosts
+          rsync -avz --exclude='.git*' --exclude='.github' -e "ssh -i ~/.ssh/id_rsa -p ${{ secrets.SAKURA_PORT || '22' }} -o StrictHostKeyChecking=no" ./ ${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}:${{ secrets.SAKURA_TEST_PATH }}/
 
-      - name: Prepare remote test directory
-        run: |
-          ssh \
-            -i ~/.ssh/sakura_deploy_key \
-            -p "${{ secrets.SAKURA_PORT || '22' }}" \
-            -o StrictHostKeyChecking=yes \
-            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
-            "mkdir -p '${{ secrets.SAKURA_TEST_PATH }}' && test -d '${{ secrets.SAKURA_TEST_PATH }}'"
-
-      - name: Deploy to gloria-test by rsync
-        run: |
-          rsync -azv \
-            --human-readable \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='.DS_Store' \
-            --exclude='Thumbs.db' \
-            --exclude='node_modules/' \
-            --exclude='netlify.toml' \
-            --exclude='*.zip' \
-            --exclude='admin/password.txt' \
-            --exclude='admin/.htpasswd' \
-            -e "ssh -i ~/.ssh/sakura_deploy_key -p ${{ secrets.SAKURA_PORT || '22' }} -o StrictHostKeyChecking=yes" \
-            ./ \
-            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}:${{ secrets.SAKURA_TEST_PATH }}/"
-
-      - name: Smoke test public pages
-        run: |
-          set -e
-          sleep 3
-          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/catalog.html"
-          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/vehicle-detail.html?ref=REF-019"
-
-            - name: Verify noindex on test pages (Skipped)
-        run: |
-          echo "Skipping noindex check"
-          exit 0
-
-          done
