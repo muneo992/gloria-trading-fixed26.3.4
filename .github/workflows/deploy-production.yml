@@ -30,7 +30,7 @@ jobs:
         run: |
           echo "Deploy source ref: $GITHUB_REF"
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            echo "This workflow deploys only refs/heads/develop. Select the develop branch when running it manually."
+            echo "This workflow deploys only refs/heads/main. Select the main branch when running it manually."
             exit 1
           fi
           if [ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]; then
@@ -91,6 +91,5 @@ jobs:
         run: |
           set -e
           sleep 3
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/catalog.html"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/vehicle-detail.html?ref=REF-019"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/images/vehicles/REF-019_01.jpg"
+          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-site/catalog.html"
+          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-site/index.html"
