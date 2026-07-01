@@ -1449,3 +1449,44 @@ small {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .about-stats { grid-template-columns: 1fr; }
 }
+
+/* ===== Markets dropdown (hover) ===== */
+.markets-nav-item {
+  position: relative;
+  border-left: 1px solid #ddd;
+  padding-left: 1rem;
+  margin-left: 0.5rem;
+}
+.markets-nav-item > a {
+  white-space: nowrap;
+}
+.market-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 160px;
+  z-index: 1000;
+}
+.markets-nav-item:hover .market-dropdown {
+  display: block;
+}
+.market-dropdown a {
+  display: block;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.95rem;
+}
+.market-dropdown a:last-child {
+  border-bottom: none;
+}
+.market-dropdown a:hover {
+  background: #f0f7f2;
+  color: #1a7a3a;
+}
