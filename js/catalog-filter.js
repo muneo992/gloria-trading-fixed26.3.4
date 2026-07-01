@@ -89,85 +89,6 @@ document.addEventListener("DOMContentLoaded", () => {
     appendOptions(filterModel, models, make ? "All Models" : "-- Any --");
   }
 
-  const resaleData = {
-    "REF-001": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Taxi resale, private daily use, entry-level retail stock, city delivery"
-    },
-    "REF-002": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Cote d'Ivoire (Abidjan)",
-      use: "Private resale, family use, small fleet, weekend 4WD demand"
-    },
-    "REF-003": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Cote d'Ivoire (Abidjan)",
-      use: "Executive resale, government fleet, premium private buyer, long-distance use"
-    },
-    "REF-004": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Taxi resale, private daily use, corporate fleet, budget retail stock"
-    },
-    "REF-005": {
-      markets: "Ghana (Tema) / Cote d'Ivoire (Abidjan)",
-      use: "Executive resale, fuel-efficient private use, ride-share, corporate fleet"
-    },
-    "REF-006": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Family resale, church group transport, school run, private passenger use"
-    },
-    "REF-007": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Cote d'Ivoire (Abidjan)",
-      use: "Family resale, premium minivan demand, private passenger, church group"
-    },
-    "REF-008": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Retail resale, private daily use, small cargo, family station wagon demand"
-    },
-    "REF-009": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Taxi resale, private daily use, corporate fleet, budget retail stock"
-    },
-    "REF-010": {
-      markets: "Ghana (Tema) / Cote d'Ivoire (Abidjan)",
-      use: "Executive resale, fuel-efficient private use, ride-share, corporate fleet"
-    },
-    "REF-011": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Taxi resale, private daily use, entry-level retail stock, city delivery"
-    },
-    "REF-012": {
-      markets: "Ghana (Tema) / Cote d'Ivoire (Abidjan)",
-      use: "Fuel-efficient private resale, city commute, ride-share, eco-conscious buyer"
-    },
-    "REF-013": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Private daily use, city commute, entry-level retail, young buyer segment"
-    },
-    "REF-014": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Fuel-efficient city use, taxi resale, private daily, ride-share demand"
-    },
-    "REF-015": {
-      markets: "Ghana (Tema) / Cote d'Ivoire (Abidjan)",
-      use: "Fuel-efficient private use, city commute, diesel economy buyer segment"
-    },
-    "REF-016": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Commercial cargo, school transport, church fleet, delivery, goods distribution"
-    },
-    "REF-017": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)",
-      use: "Commercial cargo, small business delivery, market goods transport, fleet"
-    },
-    "REF-018": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Cote d'Ivoire (Abidjan)",
-      use: "Family resale, church group, school run, private passenger, premium minivan"
-    },
-    "REF-019": {
-      markets: "Ghana (Tema) / Nigeria (Lagos) / Cote d'Ivoire (Abidjan)",
-      use: "Family resale, premium minivan demand, private passenger, church group"
-    }
-  };
-
   function renderVehicles() {
     if (!vehicleGrid || !resultsCount) return;
     vehicleGrid.innerHTML = "";
@@ -185,12 +106,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const ref = v.ref_id || "";
       const priceDisplay = getPriceDisplay(v);
       const modelName = v.model || "this model";
-      const info = resaleData[ref] || {
-        markets: "Ghana / Nigeria / Benin / Cote d'Ivoire",
-        use: "Retail resale, private use, or fleet demand"
-      };
-      const resaleMarkets = info.markets;
-      const typicalBuyerUse = info.use;
+      const resaleMarkets = v.resale_markets || "Ghana / Nigeria / Benin / Cote d'Ivoire";
+      const typicalBuyerUse = v.typical_buyer_use || "Retail resale, private use, or fleet demand";
 
       const card = document.createElement("div");
       card.className = "vehicle-card";
