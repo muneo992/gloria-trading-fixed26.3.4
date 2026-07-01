@@ -17,18 +17,18 @@ document.addEventListener("DOMContentLoaded", () => {
   let filteredVehicles = [];
   let makeModelMap = {};
 
-  const getRef = (v) => v.ref || v.ref_id || "";
-  const getTitle = (v) => v.title || v.display_name_en || [v.year, v.make, v.model, v.grade].filter(Boolean).join(" ");
-  const getImages = (v) => v.images || v.gallery || (v.image_main ? [v.image_main] : []);
-  const getMileage = (v) => Number(v.mileage ?? v.mileage_km ?? 0);
-  const getMileageDisplay = (v) => v.mileage_display || (getMileage(v) ? `${getMileage(v).toLocaleString()} km` : "-");
-  const getBody = (v) => v.body || v.body_type || "-";
-  const getFuel = (v) => v.fuel || v.fuel_type || "-";
-  const getPrice = (v) => Number(v.price_usd ?? v.price_low_usd ?? 0);
-  const getPriceDisplay = (v) => v.price_display || (getPrice(v) ? `USD ${getPrice(v).toLocaleString()}` : "Ask");
+  const getTitle = (v) => v.display_name_en || [v.year, v.make, v.model, v.grade].filter(Boolean).join(" ");
+  const getImages = (v) => Array.isArray(v.gallery) ? v.gallery : [];
+  const getMileage = (v) => Number(v.mileage_km || 0);
+  const getMileageDisplay = (v) => getMileage(v) ? `${getMileage(v).toLocaleString()} km` : "-";
+  const getPrice = (v) => Number(v.reference_price_usd || 0);
+  const getPriceDisplay = (v) => getPrice(v) ? `USD ${getPrice(v).toLocaleString()}` : "Ask";
   const uniqueSorted = (items) => Array.from(new Set(items.filter(Boolean))).sort();
 
-  fetch("data/vehicles.json")
+  if (resultsCount) resultsCount.textContent = "Loading dealer reference vehicles...";
+  if (vehicleGrid) vehicleGrid.innerHTML = `<p class="text-muted">Loading dealer reference vehicles...</p>`;
+
+  fetch(`data/vehicles.json?ts=${Date.now()}`, { cache: "no-store" })
     .then(response => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
@@ -36,7 +36,6 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(data => {
       vehicles = Array.isArray(data) ? data : (data.vehicles || []);
       filteredVehicles = [...vehicles];
-
       buildMakeModelMap();
       populateStaticFilters();
       populateModelOptions("");
@@ -56,7 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
     optAll.value = "";
     optAll.textContent = placeholderText;
     select.appendChild(optAll);
-
     values.forEach(value => {
       const opt = document.createElement("option");
       opt.value = value;
@@ -67,8 +65,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function populateStaticFilters() {
     appendOptions(filterMake, uniqueSorted(vehicles.map(v => v.make)), "-- Any --");
-    appendOptions(filterBody, uniqueSorted(vehicles.map(getBody)), "-- Any --");
-    appendOptions(filterFuel, uniqueSorted(vehicles.map(getFuel)), "-- Any --");
+    appendOptions(filterBody, uniqueSorted(vehicles.map(v => v.body_type)), "-- Any --");
+    appendOptions(filterFuel, uniqueSorted(vehicles.map(v => v.fuel_type)), "-- Any --");
     appendOptions(filterTransmission, uniqueSorted(vehicles.map(v => v.transmission)), "-- Any --");
   }
 
@@ -94,10 +92,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderVehicles() {
     if (!vehicleGrid || !resultsCount) return;
     vehicleGrid.innerHTML = "";
-
     if (filteredVehicles.length === 0) {
-      vehicleGrid.innerHTML = `<p class="text-muted">No vehicles match the selected filters.</p>`;
-      resultsCount.textContent = "0 vehicles found";
+      vehicleGrid.innerHTML = `<p class="text-muted">No reference vehicles match your current filters. Please reset filters or submit a Dealer RFQ for auction sourcing.</p>`;
+      resultsCount.textContent = "No matching reference vehicles";
       return;
     }
 
@@ -106,12 +103,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const imageSrc = images.length > 0 ? images[0] : "";
       const hasImage = Boolean(imageSrc);
       const title = getTitle(v);
-      const ref = getRef(v);
+      const ref = v.ref_id || "";
       const priceDisplay = getPriceDisplay(v);
+      const modelName = v.model || "this model";
+      const resaleMarkets = "Ghana / Nigeria / Benin / Côte d’Ivoire";
+      const typicalBuyerUse = ref === "REF-001"
+        ? "city use, taxi resale, private resale, delivery, or entry-level stock depending on local market demand"
+        : v.body_type === "Van" || v.body_type === "Truck"
+          ? "commercial, school, church, fleet, or delivery resale"
+          : v.body_type === "SUV"
+            ? "business, executive, fleet, or private resale"
+            : "taxi resale, retail resale, business resale, or daily resale demand";
 
       const card = document.createElement("div");
       card.className = "vehicle-card";
-
       card.innerHTML = `
         <div class="vehicle-image ${hasImage ? "" : "no-image"}">
           ${hasImage ? `<img src="${imageSrc}" alt="${title}">` : `<span>No Image</span>`}
@@ -119,28 +124,25 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="vehicle-card-inner">
           <h3 class="vehicle-title">${title}</h3>
           <p class="ref-id">Ref ID: ${ref}</p>
-          <p class="vehicle-meta">
-            Year: ${v.year || "-"} | Mileage: ${getMileageDisplay(v)}
-          </p>
-          <p class="vehicle-meta">
-            ${getBody(v)} | ${getFuel(v)} | ${v.transmission || "-"}
-          </p>
+          <p class="vehicle-meta">Year: ${v.year || "-"} | Mileage: ${getMileageDisplay(v)}</p>
+          <p class="vehicle-meta">${v.body_type || "-"} | ${v.fuel_type || "-"} | ${v.transmission || "-"}</p>
           <p class="vehicle-drive">Right-Hand Drive (RHD) Only</p>
           <div class="vehicle-price-block">
-            <p class="price-label">Reference Price (USD, FOB Japan)</p>
+            <p class="price-label">Dealer Reference Price (USD, FOB Japan)</p>
             <p class="price-range">${priceDisplay}</p>
-            <p class="price-basis">Past transaction example</p>
+            <p class="price-basis">Past transaction example for resale planning</p>
           </div>
-          <p class="vehicle-note">Not in stock. Past transaction example.</p>
-          <a href="vehicle-detail.html?ref=${encodeURIComponent(ref)}" class="btn btn-primary btn-block">
-            Request Quote for Similar
-          </a>
-        </div>
-      `;
-
+          <table class="spec-table" style="font-size: 0.82rem; margin: 0.9rem 0;">
+            <tr><td class="spec-label">Best for resale in</td><td class="spec-value">${resaleMarkets}</td></tr>
+            <tr><td class="spec-label">Typical buyer use</td><td class="spec-value">${typicalBuyerUse}</td></tr>
+            <tr><td class="spec-label">Similar units</td><td class="spec-value">Auction sourcing available for ${modelName}</td></tr>
+            <tr><td class="spec-label">Bulk / repeat order</td><td class="spec-value">Dealer RFQ supported</td></tr>
+          </table>
+          <p class="vehicle-note">Not in stock. Similar units can be sourced from Japanese auctions for dealer, importer, or fleet orders.</p>
+          <a href="vehicle-detail.html?ref=${encodeURIComponent(ref)}" class="btn btn-primary btn-block">Request Dealer Quote for Similar</a>
+        </div>`;
       vehicleGrid.appendChild(card);
     });
-
     resultsCount.textContent = `${filteredVehicles.length} vehicles found`;
   }
 
@@ -148,37 +150,27 @@ document.addEventListener("DOMContentLoaded", () => {
     filteredVehicles = vehicles.filter(v => {
       if (filterMake?.value && v.make !== filterMake.value) return false;
       if (filterModel?.value && v.model !== filterModel.value) return false;
-      if (filterBody?.value && getBody(v) !== filterBody.value) return false;
-      if (filterFuel?.value && getFuel(v) !== filterFuel.value) return false;
+      if (filterBody?.value && v.body_type !== filterBody.value) return false;
+      if (filterFuel?.value && v.fuel_type !== filterFuel.value) return false;
       if (filterTransmission?.value && v.transmission !== filterTransmission.value) return false;
       if (filterYearFrom?.value && Number(v.year) < Number(filterYearFrom.value)) return false;
       if (filterYearTo?.value && Number(v.year) > Number(filterYearTo.value)) return false;
       if (filterMileage?.value && getMileage(v) > Number(filterMileage.value)) return false;
       return true;
     });
-
     applySorting();
     renderVehicles();
   }
 
   function applySorting() {
     const sortValue = sortSelect?.value || "";
-    if (sortValue === "price_asc") {
-      filteredVehicles.sort((a, b) => getPrice(a) - getPrice(b));
-    } else if (sortValue === "price_desc") {
-      filteredVehicles.sort((a, b) => getPrice(b) - getPrice(a));
-    } else if (sortValue === "year_desc") {
-      filteredVehicles.sort((a, b) => Number(b.year || 0) - Number(a.year || 0));
-    } else if (sortValue === "mileage_asc") {
-      filteredVehicles.sort((a, b) => getMileage(a) - getMileage(b));
-    }
+    if (sortValue === "price_asc") filteredVehicles.sort((a, b) => getPrice(a) - getPrice(b));
+    else if (sortValue === "price_desc") filteredVehicles.sort((a, b) => getPrice(b) - getPrice(a));
+    else if (sortValue === "year_desc") filteredVehicles.sort((a, b) => Number(b.year || 0) - Number(a.year || 0));
+    else if (sortValue === "mileage_asc") filteredVehicles.sort((a, b) => getMileage(a) - getMileage(b));
   }
 
-  filterMake?.addEventListener("change", () => {
-    populateModelOptions(filterMake.value);
-    if (filterModel) filterModel.value = "";
-    applyFilters();
-  });
+  filterMake?.addEventListener("change", () => { populateModelOptions(filterMake.value); if (filterModel) filterModel.value = ""; applyFilters(); });
   filterModel?.addEventListener("change", applyFilters);
   filterBody?.addEventListener("change", applyFilters);
   filterFuel?.addEventListener("change", applyFilters);
@@ -187,7 +179,6 @@ document.addEventListener("DOMContentLoaded", () => {
   filterYearTo?.addEventListener("change", applyFilters);
   filterMileage?.addEventListener("input", applyFilters);
   sortSelect?.addEventListener("change", applyFilters);
-
   resetFiltersBtn?.addEventListener("click", () => {
     if (filterMake) filterMake.value = "";
     if (filterBody) filterBody.value = "";

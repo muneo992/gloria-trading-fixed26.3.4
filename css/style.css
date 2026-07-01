@@ -1000,6 +1000,13 @@ small {
 /* ============================================================
    TABLES
    ============================================================ */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 1rem;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -1023,6 +1030,12 @@ small {
 }
 
 .data-table tr:hover td { background-color: var(--gray-100); }
+
+@media (max-width: 768px) {
+  .table-responsive .data-table {
+    min-width: 640px;
+  }
+}
 
 .profile-table {
   width: 100%;
@@ -1316,6 +1329,11 @@ small {
   border-radius: var(--radius-lg);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 /* CTA box (vehicle detail sidebar) */
