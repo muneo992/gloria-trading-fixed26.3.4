@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /.github/
+
+Sitemap: https://gltr.sakura.ne.jp/gloria-site/sitemap.xml
