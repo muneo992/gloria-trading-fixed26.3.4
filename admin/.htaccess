@@ -1,9 +1,3 @@
 # PHPセッションによるアクセス制御
 # このフォルダはPHPログイン認証で保護されています
 Options -Indexes
-
-# Basic認証によるパスワード保護
-AuthType Basic
-AuthName "Admin Area - Restricted Access"
-AuthUserFile /home/gltr/www/gloria-site/admin/.htpasswd
-Require valid-user
