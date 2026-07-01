@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /.github/
 
-Sitemap: https://gltr.sakura.ne.jp/gloria-site/sitemap.xml
+Sitemap: https://gloriatrading.com/sitemap.xml
