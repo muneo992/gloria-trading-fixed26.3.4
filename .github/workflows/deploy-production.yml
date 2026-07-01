@@ -16,7 +16,7 @@ jobs:
   deploy-production:
     name: Deploy to Sakura production with backup
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/develop' && inputs.confirm == 'DEPLOY_PRODUCTION' }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY_PRODUCTION' }}
 
     env:
       SAKURA_PROD_PATH: /home/gltr/www/gloria-site
@@ -29,7 +29,7 @@ jobs:
       - name: Validate branch and confirmation
         run: |
           echo "Deploy source ref: $GITHUB_REF"
-          if [ "$GITHUB_REF" != "refs/heads/develop" ]; then
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "This workflow deploys only refs/heads/develop. Select the develop branch when running it manually."
             exit 1
           fi
