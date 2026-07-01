@@ -23,17 +23,26 @@ $vehicles = &$data['vehicles'];
 $is_edit = false;
 $vehicle = [
     'ref_id' => '', 'display_name_en' => '', 'year' => '', 'make' => '',
-    'model' => '', 'body_type' => '', 'fuel_type' => 'Diesel',
-    'transmission' => 'Manual', 'mileage_km' => '', 'price_low_usd' => '',
-    'price_high_usd' => '', 'basis_from' => '', 'basis_to' => '',
+    'model' => '', 'grade' => '', 'body_type' => '', 'fuel_type' => 'Diesel',
+    'transmission' => 'Manual', 'mileage_km' => '', 'engine_cc' => 0,
+    'reference_price_usd' => '', 'basis_from' => '', 'basis_to' => '',
     'disclaimer_short' => 'Reference vehicle only. Not in stock. Photo for reference.',
-    'gallery' => []
+    'best_for_resale_in' => '',
+    'typical_buyer_use' => '',
+    'similar_units' => '',
+    'bulk_repeat_order' => '',
+    'resale_markets' => '',
+    'gallery' => [],
+    'quote_spec_files' => [], 'quote_image_files' => [], 'vehicle_certificate_files' => [],
+    'quote_spec_data' => ['auction_price_jpy'=>0,'exchange_rate_jpy_usd'=>0,'purchase_price_usd'=>0,'local_shipping_jpy'=>0,'export_fee_jpy'=>0,'inspection_jpy'=>0,'total_cost_jpy'=>0,'total_cost_usd'=>0,'margin_usd'=>0,'selling_price_usd'=>0,'notes'=>''],
+    'export_document_data' => ['commercial_invoice_no'=>'','commercial_invoice_date'=>'','packing_list_no'=>'','bl_no'=>'','bl_date'=>'','vessel_name'=>'','voyage_no'=>'','port_of_loading'=>'Nagoya, Japan','port_of_discharge'=>'','destination_country'=>'','consignee_name'=>'','consignee_address'=>'','notify_party'=>'','shipping_marks'=>'','gross_weight_kg'=>0,'net_weight_kg'=>0,'measurement_cbm'=>0,'notes'=>''],
+    'vehicle_certificate_data' => ['registration_no'=>'','registration_date'=>'','first_registration'=>'','vehicle_type'=>'','chassis_no'=>'','engine_no'=>'','color'=>'','notes'=>'']
 ];
 
 if ($ref_id) {
     foreach ($vehicles as $v) {
         if ($v['ref_id'] === $ref_id) {
-            $vehicle = $v;
+            $vehicle = array_merge($vehicle, $v);
             $is_edit = true;
             break;
         }
@@ -46,23 +55,33 @@ $success = false;
 // --- 保存処理 ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save') {
     $new_ref = trim($_POST['ref_id'] ?? '');
-    $new_vehicle = [
-        'ref_id'           => $new_ref,
-        'display_name_en'  => trim($_POST['display_name_en'] ?? ''),
-        'year'             => (int)($_POST['year'] ?? 0),
-        'make'             => trim($_POST['make'] ?? ''),
-        'model'            => trim($_POST['model'] ?? ''),
-        'body_type'        => trim($_POST['body_type'] ?? ''),
-        'fuel_type'        => trim($_POST['fuel_type'] ?? ''),
-        'transmission'     => trim($_POST['transmission'] ?? ''),
-        'mileage_km'       => (int)str_replace(',', '', $_POST['mileage_km'] ?? '0'),
-        'price_low_usd'    => (int)str_replace(',', '', $_POST['price_low_usd'] ?? '0'),
-        'price_high_usd'   => (int)str_replace(',', '', $_POST['price_high_usd'] ?? '0'),
-        'basis_from'       => trim($_POST['basis_from'] ?? ''),
-        'basis_to'         => trim($_POST['basis_to'] ?? ''),
-        'disclaimer_short' => trim($_POST['disclaimer_short'] ?? ''),
-        'gallery'          => json_decode($_POST['gallery_json'] ?? '[]', true) ?: []
-    ];
+
+    // 既存の全フィールドを保持しつつ更新（quote_spec_data等の複合フィールドを上書きしない）
+    $existing_vehicle = $vehicle; // 現在のデータをベースにする
+
+    $new_vehicle = array_merge($existing_vehicle, [
+        'ref_id'               => $new_ref,
+        'display_name_en'      => trim($_POST['display_name_en'] ?? ''),
+        'year'                 => (int)($_POST['year'] ?? 0),
+        'make'                 => trim($_POST['make'] ?? ''),
+        'model'                => trim($_POST['model'] ?? ''),
+        'grade'                => trim($_POST['grade'] ?? ''),
+        'body_type'            => trim($_POST['body_type'] ?? ''),
+        'fuel_type'            => trim($_POST['fuel_type'] ?? ''),
+        'transmission'         => trim($_POST['transmission'] ?? ''),
+        'mileage_km'           => (int)str_replace(',', '', $_POST['mileage_km'] ?? '0'),
+        'engine_cc'            => (int)str_replace(',', '', $_POST['engine_cc'] ?? '0'),
+        'reference_price_usd'  => (int)str_replace(',', '', $_POST['reference_price_usd'] ?? '0'),
+        'basis_from'           => trim($_POST['basis_from'] ?? ''),
+        'basis_to'             => trim($_POST['basis_to'] ?? ''),
+        'disclaimer_short'     => trim($_POST['disclaimer_short'] ?? ''),
+        'best_for_resale_in'   => trim($_POST['best_for_resale_in'] ?? ''),
+        'typical_buyer_use'    => trim($_POST['typical_buyer_use'] ?? ''),
+        'similar_units'        => trim($_POST['similar_units'] ?? ''),
+        'bulk_repeat_order'    => trim($_POST['bulk_repeat_order'] ?? ''),
+        'resale_markets'       => trim($_POST['resale_markets'] ?? ''),
+        'gallery'              => json_decode($_POST['gallery_json'] ?? '[]', true) ?: []
+    ]);
 
     // バリデーション
     if (empty($new_ref)) $errors[] = 'Ref IDは必須です。';
@@ -120,7 +139,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_image') {
     foreach ($vehicles as &$v) {
         if ($v['ref_id'] === $ref_id) {
             $v['gallery'] = array_values(array_filter($v['gallery'], fn($g) => $g !== $img_path));
-            $vehicle = $v;
+            $vehicle = array_merge($vehicle, $v);
             break;
         }
     }
@@ -262,13 +281,17 @@ textarea { resize: vertical; min-height: 80px; }
             <input type="text" name="model" value="<?= htmlspecialchars($vehicle['model']) ?>" placeholder="例: Hiace">
           </div>
           <div class="form-group">
+            <label>グレード（Grade）</label>
+            <input type="text" name="grade" value="<?= htmlspecialchars($vehicle['grade'] ?? '') ?>" placeholder="例: DX, GL, Super GL">
+          </div>
+          <div class="form-group">
             <label>年式（Year）<span class="req">*</span></label>
             <input type="number" name="year" value="<?= htmlspecialchars($vehicle['year']) ?>" placeholder="例: 2020" min="1990" max="2030">
           </div>
           <div class="form-group">
             <label>ボディタイプ（Body Type）</label>
             <select name="body_type">
-              <?php foreach (['Van','Sedan','SUV','Pickup','Wagon','Minivan','Truck','Bus','Other'] as $bt): ?>
+              <?php foreach (['Hatchback / Compact','Sedan','SUV','Van','Pickup','Wagon','Minivan','Truck','Bus','Other'] as $bt): ?>
               <option value="<?= $bt ?>" <?= ($vehicle['body_type'] === $bt) ? 'selected' : '' ?>><?= $bt ?></option>
               <?php endforeach; ?>
             </select>
@@ -302,6 +325,10 @@ textarea { resize: vertical; min-height: 80px; }
             <label>走行距離 km（Mileage）</label>
             <input type="number" name="mileage_km" value="<?= htmlspecialchars($vehicle['mileage_km']) ?>" placeholder="例: 45000" min="0">
           </div>
+          <div class="form-group">
+            <label>排気量 cc（Engine CC）</label>
+            <input type="number" name="engine_cc" value="<?= htmlspecialchars($vehicle['engine_cc'] ?? 0) ?>" placeholder="例: 2000" min="0">
+          </div>
         </div>
       </div>
     </div>
@@ -312,22 +339,19 @@ textarea { resize: vertical; min-height: 80px; }
       <div class="card-body">
         <div class="form-grid">
           <div class="form-group">
-            <label>価格（下限）USD</label>
-            <input type="number" name="price_low_usd" value="<?= htmlspecialchars($vehicle['price_low_usd']) ?>" placeholder="例: 12000" min="0">
-          </div>
-          <div class="form-group">
-            <label>価格（上限）USD</label>
-            <input type="number" name="price_high_usd" value="<?= htmlspecialchars($vehicle['price_high_usd']) ?>" placeholder="例: 15000" min="0">
+            <label>参考価格 USD（Reference Price）</label>
+            <input type="number" name="reference_price_usd" value="<?= htmlspecialchars($vehicle['reference_price_usd'] ?? '') ?>" placeholder="例: 5500" min="0">
+            <div class="hint">FOB参考価格（USD）</div>
           </div>
           <div class="form-group">
             <label>参考期間（開始）Basis From</label>
             <input type="text" name="basis_from" value="<?= htmlspecialchars($vehicle['basis_from']) ?>" placeholder="例: 2023-01">
-            <div class="hint">形式: YYYY-MM（例: 2023-01）</div>
+            <div class="hint">形式: YYYY-MM または日付</div>
           </div>
           <div class="form-group">
             <label>参考期間（終了）Basis To</label>
             <input type="text" name="basis_to" value="<?= htmlspecialchars($vehicle['basis_to']) ?>" placeholder="例: 2023-06">
-            <div class="hint">形式: YYYY-MM（例: 2023-06）</div>
+            <div class="hint">形式: YYYY-MM または仕入先名</div>
           </div>
           <div class="form-group full">
             <label>免責事項（Disclaimer）</label>
@@ -337,11 +361,41 @@ textarea { resize: vertical; min-height: 80px; }
       </div>
     </div>
 
+    <!-- 輸出市場情報 -->
+    <div class="card">
+      <div class="card-header">輸出市場情報（Resale Markets）</div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>販売市場（Resale Markets）</label>
+            <input type="text" name="resale_markets" value="<?= htmlspecialchars($vehicle['resale_markets'] ?? '') ?>" placeholder="例: Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou)">
+            <div class="hint">スラッシュ区切りで複数市場を入力。例: Ghana (Tema) / Nigeria (Lagos) / Benin (Cotonou) / Cote d'Ivoire (Abidjan)</div>
+          </div>
+          <div class="form-group full">
+            <label>典型的な購入用途（Typical Buyer Use）</label>
+            <input type="text" name="typical_buyer_use" value="<?= htmlspecialchars($vehicle['typical_buyer_use'] ?? '') ?>" placeholder="例: Taxi resale, private daily use, entry-level retail stock">
+            <div class="hint">カンマ区切りで用途を入力</div>
+          </div>
+          <div class="form-group full">
+            <label>最適な再販市場（Best for Resale In）</label>
+            <input type="text" name="best_for_resale_in" value="<?= htmlspecialchars($vehicle['best_for_resale_in'] ?? '') ?>" placeholder="例: Ghana, Nigeria">
+          </div>
+          <div class="form-group">
+            <label>類似車両（Similar Units）</label>
+            <input type="text" name="similar_units" value="<?= htmlspecialchars($vehicle['similar_units'] ?? '') ?>" placeholder="例: REF-002, REF-005">
+          </div>
+          <div class="form-group">
+            <label>まとめ買い・リピート（Bulk / Repeat Order）</label>
+            <input type="text" name="bulk_repeat_order" value="<?= htmlspecialchars($vehicle['bulk_repeat_order'] ?? '') ?>" placeholder="例: 3+ units available">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 画像管理 -->
     <div class="card">
       <div class="card-header">画像管理</div>
       <div class="card-body">
-
         <?php if (!empty($vehicle['gallery'])): ?>
         <p style="font-size:0.9rem;color:#555;margin-bottom:0.75rem;">登録済み画像（最初の画像がメイン画像になります）</p>
         <div class="gallery-grid" id="gallery-grid">
@@ -359,7 +413,6 @@ textarea { resize: vertical; min-height: 80px; }
           <?php endforeach; ?>
         </div>
         <?php endif; ?>
-
         <div style="margin-top:1.25rem;">
           <p style="font-size:0.9rem;color:#555;margin-bottom:0.75rem;">新しい画像を追加（複数選択可）</p>
           <div class="upload-area" id="upload-area">
@@ -379,7 +432,6 @@ textarea { resize: vertical; min-height: 80px; }
     </div>
   </form>
 </div>
-
 <script>
 // 画像プレビュー
 document.getElementById('file-input').addEventListener('change', function() {
@@ -397,7 +449,6 @@ document.getElementById('file-input').addEventListener('change', function() {
     reader.readAsDataURL(file);
   });
 });
-
 // ドラッグ＆ドロップ
 const uploadArea = document.getElementById('upload-area');
 uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
@@ -409,7 +460,6 @@ uploadArea.addEventListener('drop', e => {
   input.files = e.dataTransfer.files;
   input.dispatchEvent(new Event('change'));
 });
-
 // 画像の順序変更（↑ 前へ）
 function moveImageUp(btn) {
   const item = btn.closest('.gallery-item');
@@ -420,13 +470,11 @@ function moveImageUp(btn) {
     updateBadges();
   }
 }
-
 function updateGalleryJson() {
   const items = document.querySelectorAll('#gallery-grid .gallery-item');
   const paths = Array.from(items).map(el => el.dataset.path);
   document.getElementById('gallery_json').value = JSON.stringify(paths);
 }
-
 // 画像削除（Ajaxで送信）
 function deleteImage(imgPath) {
   if (!confirm('この画像を削除しますか？')) return;
@@ -444,7 +492,6 @@ function deleteImage(imgPath) {
   document.body.appendChild(form);
   form.submit();
 }
-
 function updateBadges() {
   const items = document.querySelectorAll('#gallery-grid .gallery-item');
   items.forEach((el, i) => {

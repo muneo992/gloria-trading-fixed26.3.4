@@ -221,7 +221,8 @@ tr:hover td { background: #fafbff; }
           <th>車両名</th>
           <th>年式</th>
           <th>走行距離</th>
-          <th>価格 (USD)</th>
+          <th>参考価格 (USD)</th>
+          <th>販売市場</th>
           <th>基準期間</th>
           <th>操作</th>
         </tr>
@@ -240,7 +241,8 @@ tr:hover td { background: #fafbff; }
           <td><?= htmlspecialchars($v['display_name_en'] ?? '') ?></td>
           <td><?= htmlspecialchars($v['year'] ?? '') ?></td>
           <td><?= isset($v['mileage_km']) ? number_format($v['mileage_km']) . ' km' : '-' ?></td>
-          <td>$<?= isset($v['price_low_usd']) ? number_format($v['price_low_usd']) : '-' ?> – $<?= isset($v['price_high_usd']) ? number_format($v['price_high_usd']) : '-' ?></td>
+          <td><?= isset($v['reference_price_usd']) && $v['reference_price_usd'] > 0 ? '$' . number_format($v['reference_price_usd']) : '-' ?></td>
+          <td style="font-size:0.8rem;max-width:160px;"><?= htmlspecialchars($v['resale_markets'] ?? '-') ?></td>
           <td><?= htmlspecialchars(($v['basis_from'] ?? '') . ' – ' . ($v['basis_to'] ?? '')) ?></td>
           <td>
             <div class="actions">
