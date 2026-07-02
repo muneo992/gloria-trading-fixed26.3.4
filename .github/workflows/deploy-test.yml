@@ -37,4 +37,5 @@ jobs:
           sleep 3
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/"
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/catalog.html"
+          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/ghana"
           curl -s --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/admin/index.php?diag=1" | grep -q "status: ok"
