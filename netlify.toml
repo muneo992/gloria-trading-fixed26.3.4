@@ -40,9 +40,14 @@
   status = 200
 
 [[redirects]]
-  from = "/west-africa/ivory-coast"
-  to = "/west_africa/ivory-coast.html"
+  from = "/west-africa/cote-divoire"
+  to = "/west_africa/cote-divoire.html"
   status = 200
+
+[[redirects]]
+  from = "/west-africa/ivory-coast"
+  to = "/west-africa/cote-divoire"
+  status = 301
 
 # 旧国別URL → 新URL（301）
 [[redirects]]
@@ -62,5 +67,5 @@
 
 [[redirects]]
   from = "/ivory-coast.html"
-  to = "/west-africa/ivory-coast"
+  to = "/west-africa/cote-divoire"
   status = 301

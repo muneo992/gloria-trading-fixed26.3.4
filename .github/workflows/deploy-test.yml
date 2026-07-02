@@ -38,5 +38,7 @@ jobs:
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/"
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/catalog.html"
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/ghana"
+          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/cote-divoire"
+          curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/ivory-coast" | grep -i "^Location:" | grep -q "/west-africa/cote-divoire"
           curl -s --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/admin/index.php?diag=1" | grep -q "status: ok"
 
