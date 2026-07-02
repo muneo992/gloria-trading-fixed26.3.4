@@ -105,5 +105,7 @@ jobs:
           curl -I --fail --max-time 20 "https://www.gloriatrading.com/"
           curl -I --fail --max-time 20 "https://www.gloriatrading.com/catalog.html"
           curl -I --fail --max-time 20 "https://www.gloriatrading.com/west-africa/ghana"
+          curl -I --fail --max-time 20 "https://www.gloriatrading.com/ghana.html"
+          curl -sI --fail --max-time 20 "https://www.gloriatrading.com/ghana.html" | grep -i "^Location:" | grep -q "/west-africa/ghana"
           curl -I --fail --max-time 20 "https://www.gloriatrading.com/vehicle-detail.html?ref=REF-019"
           curl -I --fail --max-time 20 "https://www.gloriatrading.com/images/vehicles/REF-019-1.jpg"

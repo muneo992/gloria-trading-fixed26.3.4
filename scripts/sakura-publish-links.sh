@@ -37,11 +37,21 @@ pages=(
   rfq-success.html
   shipping-payment.html
   vehicle-detail.html
+)
+
+legacy_country_pages=(
   ghana.html
   nigeria.html
   benin.html
   ivory-coast.html
 )
+
+for page in "${legacy_country_pages[@]}"; do
+  if [[ -e "$page" ]]; then
+    rm -f "$page"
+    echo "removed legacy country page: $page"
+  fi
+done
 
 for page in "${pages[@]}"; do
   if [[ -f "frontend/$page" ]]; then
