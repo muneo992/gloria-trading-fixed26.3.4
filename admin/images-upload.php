@@ -5,17 +5,9 @@ if (empty($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-define('VEHICLES_JSON', __DIR__ . '/../data/vehicles.json');
-define('IMAGES_DIR',    __DIR__ . '/../images/vehicles/');
-define('IMAGES_URL',    '../images/vehicles/');
+require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/vehicle-data.php';
 
-function loadVehicles() {
-    if (!file_exists(VEHICLES_JSON)) return ['vehicles' => []];
-    return json_decode(file_get_contents(VEHICLES_JSON), true) ?: ['vehicles' => []];
-}
-function saveVehicles($data) {
-    return file_put_contents(VEHICLES_JSON, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-}
 
 // Ref IDを小文字・ハイフン形式に変換（例: REF-001 → ref-001）
 function refToPrefix($ref_id) {
@@ -265,6 +257,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="nav">
     <a href="index.php">← 車両一覧</a>
     <a href="images-assign.php">画像割り当て</a>
+    <a href="uploads.php">汎用アップロード</a>
     <a href="../index.html" target="_blank">サイトを見る</a>
     <a href="index.php?logout=1">ログアウト</a>
   </div>
@@ -298,7 +291,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="lbl">未割り当て</div>
     </div>
     <div class="stat-box">
-      <div class="num"><?= count(array_filter($vehicles, fn($v) => empty($v['gallery']))) ?></div>
+      <div class="num"><?= count(array_filter($vehicles, function ($v) { return empty($v['gallery']); })) ?></div>
       <div class="lbl">画像なし車両</div>
     </div>
   </div>

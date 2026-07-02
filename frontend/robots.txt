@@ -1,7 +1,5 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
-Disallow: /.github/
-Disallow: /frontend/
 
 Sitemap: https://gloriatrading.com/sitemap.xml

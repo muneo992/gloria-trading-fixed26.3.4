@@ -1,24 +1,19 @@
 <?php
 session_start();
 
-// --- 設定 ---
-// パスワードは admin/password.txt から読み込みます
-// このファイルはGitHubには含まれません（サーバー上のみ）
-$password_file = __DIR__ . '/password.txt';
-if (file_exists($password_file)) {
-    $admin_password = trim(file_get_contents($password_file));
-} else {
-    $admin_password = 'change-me'; // password.txtが存在しない場合のフォールバック
-}
-define('ADMIN_PASSWORD', $admin_password);
-define('VEHICLES_JSON', __DIR__ . '/../data/vehicles.json');
-define('IMAGES_DIR', __DIR__ . '/../images/vehicles/');
-define('IMAGES_URL', '../images/vehicles/');
+require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/vehicle-data.php';
+
+$admin_password = getConfiguredAdminPassword();
+$admin_password_configured = ($admin_password !== '');
 
 // --- ログイン処理 ---
 if (isset($_POST['action']) && $_POST['action'] === 'login') {
-    if ($_POST['password'] === ADMIN_PASSWORD) {
+    $posted_password = $_POST['password'] ?? '';
+    if ($admin_password_configured && hash_equals($admin_password, $posted_password)) {
         $_SESSION['admin_logged_in'] = true;
+    } elseif (!$admin_password_configured) {
+        $login_error = '管理画面パスワードが未設定です。サーバー上の admin/password.txt または環境変数 GLORIA_ADMIN_PASSWORD を設定してください。';
     } else {
         $login_error = 'パスワードが違います。';
     }
@@ -60,6 +55,9 @@ button:hover { background: #0052a3; }
   <div class="logo">Gloria Trading</div>
   <h1>管理画面</h1>
   <p>車両データ管理システム</p>
+  <?php if (!$admin_password_configured): ?>
+  <div class="error">管理画面パスワードが未設定です。サーバー上の <code>admin/password.txt</code> または環境変数 <code>GLORIA_ADMIN_PASSWORD</code> を設定してください。</div>
+  <?php endif; ?>
   <?php if (!empty($login_error)): ?>
   <div class="error"><?= htmlspecialchars($login_error) ?></div>
   <?php endif; ?>
@@ -78,22 +76,13 @@ button:hover { background: #0052a3; }
 
 // --- 管理画面（ログイン済み） ---
 
-// vehicles.json を読み込む
-function loadVehicles() {
-    if (!file_exists(VEHICLES_JSON)) return ['vehicles' => []];
-    $json = file_get_contents(VEHICLES_JSON);
-    return json_decode($json, true) ?: ['vehicles' => []];
-}
-
-function saveVehicles($data) {
-    return file_put_contents(VEHICLES_JSON, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-}
-
 // --- 車両削除 ---
 if (isset($_POST['action']) && $_POST['action'] === 'delete') {
     $ref_id = $_POST['ref_id'] ?? '';
     $data = loadVehicles();
-    $data['vehicles'] = array_values(array_filter($data['vehicles'], fn($v) => $v['ref_id'] !== $ref_id));
+    $data['vehicles'] = array_values(array_filter($data['vehicles'], function ($v) use ($ref_id) {
+        return ($v['ref_id'] ?? '') !== $ref_id;
+    }));
     saveVehicles($data);
     header('Location: index.php?deleted=1');
     exit;
@@ -127,6 +116,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-danger:hover { background: #c82333; }
 .btn-edit { background: #ffc107; color: #333; font-size: 0.8rem; padding: 0.4rem 0.8rem; }
 .btn-edit:hover { background: #e0a800; }
+.btn-quote { background: #6f42c1; color: #fff; font-size: 0.8rem; padding: 0.4rem 0.8rem; }
+.btn-quote:hover { background: #59359a; }
 .btn-import { background: #17a2b8; color: #fff; }
 .btn-import:hover { background: #138496; }
 .btn-export { background: #6f42c1; color: #fff; }
@@ -144,7 +135,10 @@ tr:hover td { background: #fafbff; }
 .thumb { width: 70px; height: 50px; object-fit: cover; border-radius: 4px; background: #eee; }
 .thumb-placeholder { width: 70px; height: 50px; background: #e9ecef; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999; }
 .ref-badge { display: inline-block; background: #e8f0fe; color: #1a56db; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
-.actions { display: flex; gap: 0.4rem; }
+.actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.bulk-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.8rem 1rem; background: #f8f9fa; border-bottom: 1px solid #eee; flex-wrap: wrap; }
+.bulk-toolbar .hint { color: #666; font-size: 0.85rem; }
+.select-col { width: 44px; text-align: center; }
 .empty-state { text-align: center; padding: 3rem; color: #999; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
 .stat-card { background: #fff; border-radius: 10px; padding: 1.2rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
@@ -162,8 +156,10 @@ tr:hover td { background: #fafbff; }
   <div class="brand">Gloria Trading 管理画面</div>
   <div class="nav">
     <a href="images-upload.php">🖼 画像管理</a>
+    <a href="uploads.php">📁 汎用アップロード</a>
     <a href="import.php">📥 インポート</a>
     <a href="export.php">📤 エクスポート</a>
+    <a href="change-password.php">🔐 パスワード変更</a>
     <a href="../index.html" target="_blank">サイトを見る</a>
     <a href="?logout=1">ログアウト</a>
   </div>
@@ -186,11 +182,11 @@ tr:hover td { background: #fafbff; }
       <div class="label">登録車両数</div>
     </div>
     <div class="stat-card">
-      <div class="num"><?= count(array_filter($vehicles, fn($v) => !empty($v['gallery']))) ?></div>
+      <div class="num"><?= count(array_filter($vehicles, function ($v) { return !empty($v['gallery']); })) ?></div>
       <div class="label">画像あり</div>
     </div>
     <div class="stat-card">
-      <div class="num"><?= count(array_filter($vehicles, fn($v) => empty($v['gallery']))) ?></div>
+      <div class="num"><?= count(array_filter($vehicles, function ($v) { return empty($v['gallery']); })) ?></div>
       <div class="label">画像なし</div>
     </div>
   </div>
@@ -212,24 +208,28 @@ tr:hover td { background: #fafbff; }
       <a href="edit.php" class="btn btn-primary" style="margin-top:1rem;">最初の車両を追加する</a>
     </div>
     <?php else: ?>
+    <form id="bulkPdfForm" action="quote-pdf.php" method="get" target="_blank" class="bulk-toolbar">
+      <button type="submit" class="btn btn-success">選択車両のProforma PDF</button>
+      <span class="hint">複数車両を1枚のPROFORMA INVOICE明細として出力できます。</span>
+    </form>
     <div style="overflow-x:auto;">
     <table>
       <thead>
         <tr>
+          <th class="select-col"><input type="checkbox" onclick="document.querySelectorAll('.bulk-ref').forEach(cb => cb.checked = this.checked)"></th>
           <th>画像</th>
           <th>Ref ID</th>
           <th>車両名</th>
           <th>年式</th>
           <th>走行距離</th>
-          <th>参考価格 (USD)</th>
-          <th>販売市場</th>
-          <th>基準期間</th>
+          <th>FOB価格 (USD)</th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody>
         <?php foreach ($vehicles as $v): ?>
         <tr>
+          <td class="select-col"><input class="bulk-ref" type="checkbox" name="refs[]" value="<?= htmlspecialchars($v['ref_id'] ?? '') ?>" form="bulkPdfForm"></td>
           <td>
             <?php if (!empty($v['gallery'][0])): ?>
             <img src="<?= htmlspecialchars('../' . $v['gallery'][0]) ?>" class="thumb" alt="">
@@ -241,12 +241,12 @@ tr:hover td { background: #fafbff; }
           <td><?= htmlspecialchars($v['display_name_en'] ?? '') ?></td>
           <td><?= htmlspecialchars($v['year'] ?? '') ?></td>
           <td><?= isset($v['mileage_km']) ? number_format($v['mileage_km']) . ' km' : '-' ?></td>
-          <td><?= isset($v['reference_price_usd']) && $v['reference_price_usd'] > 0 ? '$' . number_format($v['reference_price_usd']) : '-' ?></td>
-          <td style="font-size:0.8rem;max-width:160px;"><?= htmlspecialchars($v['resale_markets'] ?? '-') ?></td>
-          <td><?= htmlspecialchars(($v['basis_from'] ?? '') . ' – ' . ($v['basis_to'] ?? '')) ?></td>
+          <td><?= !empty($v['reference_price_usd']) ? '$' . number_format($v['reference_price_usd']) : '-' ?></td>
           <td>
             <div class="actions">
               <a href="edit.php?ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-edit">編集</a>
+              <a href="quote-preview.php?ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-quote">見積プレビュー</a>
+              <a href="quote-pdf.php?ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-success">PDF</a>
               <form method="post" onsubmit="return confirm('「<?= htmlspecialchars($v['display_name_en'] ?? '') ?>」を削除しますか？');" style="display:inline;">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="ref_id" value="<?= htmlspecialchars($v['ref_id'] ?? '') ?>">

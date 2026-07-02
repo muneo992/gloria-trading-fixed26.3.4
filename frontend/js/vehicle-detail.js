@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const getPriceDisplayNumber = (v) => getPrice(v) ? getPrice(v).toLocaleString() : "Ask";
   const isDateLike = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 
-  fetch(`data/vehicles.json?ts=${Date.now()}`, { cache: "no-store" })
+  fetch(`/data/vehicles.json?ts=${Date.now()}`, { cache: "no-store" })
     .then(response => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();

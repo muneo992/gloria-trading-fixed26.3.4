@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (resultsCount) resultsCount.textContent = "Loading dealer reference vehicles...";
   if (vehicleGrid) vehicleGrid.innerHTML = `<p class="text-muted">Loading dealer reference vehicles...</p>`;
 
-  fetch(`data/vehicles.json?ts=${Date.now()}`, { cache: "no-store" })
+  fetch(`/data/vehicles.json?ts=${Date.now()}`, { cache: "no-store" })
     .then(response => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();

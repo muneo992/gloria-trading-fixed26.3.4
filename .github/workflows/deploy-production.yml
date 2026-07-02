@@ -85,7 +85,7 @@ jobs:
             -p "${{ secrets.SAKURA_PORT || '22' }}" \
             -o StrictHostKeyChecking=yes \
             "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
-            "set -e; cp '$SAKURA_PROD_PATH/data/vehicles.json' '$SAKURA_PROD_PATH/vehicles.json'; test -s '$SAKURA_PROD_PATH/vehicles.json'"
+            "set -e; cp '$SAKURA_PROD_PATH/frontend/data/vehicles.json' '$SAKURA_PROD_PATH/vehicles.json'; test -s '$SAKURA_PROD_PATH/vehicles.json'"
 
       - name: Smoke test production pages
         run: |

@@ -5,15 +5,13 @@ if (empty($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-define('VEHICLES_JSON', __DIR__ . '/../data/vehicles.json');
+require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/vehicle-data.php';
 
-function loadVehicles() {
-    if (!file_exists(VEHICLES_JSON)) return ['vehicles' => []];
-    return json_decode(file_get_contents(VEHICLES_JSON), true) ?: ['vehicles' => []];
-}
 
-function saveVehicles($data) {
-    return file_put_contents(VEHICLES_JSON, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+function gt_import_lower($value) {
+    $value = trim((string)$value);
+    return function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
 }
 
 $result = null;
@@ -51,11 +49,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'fuel_type'        => null,
                     'transmission'     => null,
                     'mileage_km'       => null,
-                    'price_low_usd'    => null,
-                    'price_high_usd'   => null,
-                    'basis_from'       => null,
-                    'basis_to'         => null,
+                    'reference_price_usd' => null,
+                    'engine_cc'        => null,
+                    'auction_price_jpy' => null,
+                    'exchange_rate_jpy_usd' => null,
+                    'purchase_price_usd' => null,
+                    'land_transport_usd' => null,
+                    'inspection_fee_usd' => null,
+                    'other_cost_usd' => null,
+                    'profit_usd' => null,
+                    'ocean_freight_usd' => null,
+                    'insurance_usd' => null,
+                    'incoterms' => null,
                     'disclaimer_short' => null,
+                    'best_for_resale_in' => null,
+                    'typical_buyer_use' => null,
+                    'similar_units' => null,
+                    'bulk_repeat_order' => null,
                     'gallery'          => null,
                 ];
 
@@ -70,19 +80,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'fuel_type'        => ['燃料', 'fuel'],
                     'transmission'     => ['ミッション', 'transmission', 'trans'],
                     'mileage_km'       => ['走行距離', 'mileage', 'km'],
-                    'price_low_usd'    => ['価格下限', 'price_low', 'low'],
-                    'price_high_usd'   => ['価格上限', 'price_high', 'high'],
-                    'basis_from'       => ['参考期間(開始)', 'basis_from', 'basis from', '開始'],
-                    'basis_to'         => ['参考期間(終了)', 'basis_to', 'basis to', '終了'],
+                    'reference_price_usd' => ['FOB価格', '参考価格', 'reference_price', 'reference price', 'price_usd', 'price', 'fob'],
+                    'engine_cc'        => ['排気量', 'engine cc', 'engine_cc', 'displacement', 'cc'],
+                    'auction_price_jpy' => ['落札価格', 'auction price', 'auction_price_jpy'],
+                    'exchange_rate_jpy_usd' => ['為替', 'exchange rate', 'exchange_rate_jpy_usd'],
+                    'purchase_price_usd' => ['仕入価格', 'purchase price', 'purchase_price_usd'],
+                    'land_transport_usd' => ['陸送費', 'land transport', 'land_transport_usd'],
+                    'inspection_fee_usd' => ['検査費', 'inspection fee', 'inspection_fee_usd', 'inspection'],
+                    'other_cost_usd' => ['その他費用', '輸出準備費', 'other cost', 'other_cost_usd', 'export prep'],
+                    'profit_usd' => ['利益', 'profit', 'profit_usd'],
+                    'ocean_freight_usd' => ['船賃', 'ocean freight', 'freight', 'ocean_freight_usd'],
+                    'insurance_usd' => ['保険料', 'insurance', 'insurance_usd'],
+                    'incoterms' => ['インコタームズ', 'incoterms', 'incoterm', 'trade terms', 'trade term'],
                     'disclaimer_short' => ['免責', 'disclaimer'],
+                    'best_for_resale_in' => ['best for resale', 'resale market', '再販向け', '販売向け国', '対象国', 'best_for_resale_in'],
+                    'typical_buyer_use' => ['typical buyer use', 'buyer use', '用途', '購入者用途', 'typical_buyer_use'],
+                    'similar_units' => ['similar units', 'similar model', '類似車両', '類似モデル', 'similar_units'],
+                    'bulk_repeat_order' => ['bulk', 'repeat order', 'bulk / repeat', '複数台', 'リピート', 'bulk_repeat_order'],
                     'gallery'          => ['画像', 'gallery', 'image', 'photo'],
                 ];
 
                 foreach ($header_row as $i => $h) {
-                    $h_lower = mb_strtolower(trim($h));
+                    $h_lower = gt_import_lower($h);
                     foreach ($header_keywords as $field => $keywords) {
                         foreach ($keywords as $kw) {
-                            if (strpos($h_lower, mb_strtolower($kw)) !== false) {
+                            if (strpos($h_lower, gt_import_lower($kw)) !== false) {
                                 $col_map[$field] = $i;
                                 break 2;
                             }
@@ -103,6 +125,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                         $gallery_raw = trim($row[$col_map['gallery'] ?? -1] ?? '');
                         $gallery = $gallery_raw ? array_filter(array_map('trim', explode(';', $gallery_raw))) : [];
+                        $reference_price = (int)str_replace(',', '', $row[$col_map['reference_price_usd'] ?? -1] ?? '0');
+                        $quote_spec_data = gt_quote_spec_data_value([
+                            'reference_price_usd' => $reference_price,
+                            'quote_spec_data' => [
+                                'auction_price_jpy' => str_replace(',', '', $row[$col_map['auction_price_jpy'] ?? -1] ?? '0'),
+                                'exchange_rate_jpy_usd' => str_replace(',', '', $row[$col_map['exchange_rate_jpy_usd'] ?? -1] ?? '0'),
+                                'purchase_price_usd' => str_replace(',', '', $row[$col_map['purchase_price_usd'] ?? -1] ?? '0'),
+                                'land_transport_usd' => str_replace(',', '', $row[$col_map['land_transport_usd'] ?? -1] ?? '0'),
+                                'inspection_fee_usd' => str_replace(',', '', $row[$col_map['inspection_fee_usd'] ?? -1] ?? '0'),
+                                'other_cost_usd' => str_replace(',', '', $row[$col_map['other_cost_usd'] ?? -1] ?? '0'),
+                                'profit_usd' => str_replace(',', '', $row[$col_map['profit_usd'] ?? -1] ?? '0'),
+                                'ocean_freight_usd' => str_replace(',', '', $row[$col_map['ocean_freight_usd'] ?? -1] ?? '0'),
+                                'insurance_usd' => str_replace(',', '', $row[$col_map['insurance_usd'] ?? -1] ?? '0'),
+                                'incoterms' => trim($row[$col_map['incoterms'] ?? -1] ?? 'CIF'),
+                            ]
+                        ]);
 
                         $rows[] = [
                             'ref_id'           => $ref,
@@ -114,11 +152,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             'fuel_type'        => trim($row[$col_map['fuel_type'] ?? -1] ?? 'Diesel'),
                             'transmission'     => trim($row[$col_map['transmission'] ?? -1] ?? 'Manual'),
                             'mileage_km'       => (int)str_replace(',', '', $row[$col_map['mileage_km'] ?? -1] ?? '0'),
-                            'price_low_usd'    => (int)str_replace(',', '', $row[$col_map['price_low_usd'] ?? -1] ?? '0'),
-                            'price_high_usd'   => (int)str_replace(',', '', $row[$col_map['price_high_usd'] ?? -1] ?? '0'),
-                            'basis_from'       => trim($row[$col_map['basis_from'] ?? -1] ?? ''),
-                            'basis_to'         => trim($row[$col_map['basis_to'] ?? -1] ?? ''),
+                            'reference_price_usd' => $reference_price,
+                            'engine_cc'        => (int)str_replace(',', '', $row[$col_map['engine_cc'] ?? -1] ?? '0'),
+                            'quote_spec_data'  => $quote_spec_data,
+                            'basis_from'       => '',
+                            'basis_to'         => '',
                             'disclaimer_short' => trim($row[$col_map['disclaimer_short'] ?? -1] ?? 'Reference vehicle only. Not in stock. Photo for reference.'),
+                            'best_for_resale_in' => trim($row[$col_map['best_for_resale_in'] ?? -1] ?? ''),
+                            'typical_buyer_use' => trim($row[$col_map['typical_buyer_use'] ?? -1] ?? ''),
+                            'similar_units' => trim($row[$col_map['similar_units'] ?? -1] ?? ''),
+                            'bulk_repeat_order' => trim($row[$col_map['bulk_repeat_order'] ?? -1] ?? ''),
                             'gallery'          => array_values($gallery),
                         ];
                     }
@@ -308,7 +351,7 @@ tr:hover td { background: #fafbff; }
         <div class="info">
           <h4>📄 テンプレートCSVをダウンロード</h4>
           <p>Excelで開いて編集できます。サンプルデータ入りのテンプレートです。</p>
-          <p style="margin-top:0.4rem;font-size:0.8rem;color:#999;">列: Ref ID / 車両名 / 年式 / メーカー / モデル / ボディタイプ / 燃料 / ミッション / 走行距離 / 価格下限 / 価格上限 / 参考期間 / 免責事項 / 画像パス</p>
+          <p style="margin-top:0.4rem;font-size:0.8rem;color:#999;">列: Ref ID / 車両名 / 年式 / メーカー / モデル / ボディタイプ / 燃料 / ミッション / 走行距離 / FOB価格 / 排気量 / B2B販売ガイダンス4項目 / 落札価格 / 為替 / 各種費用 / 利益 / インコタームズ / 免責事項 / 画像パス</p>
         </div>
         <a href="export.php?format=template" class="btn btn-secondary">⬇ テンプレートDL</a>
       </div>
@@ -388,7 +431,9 @@ tr:hover td { background: #fafbff; }
               <th>燃料</th>
               <th>走行距離</th>
               <th>価格(USD)</th>
-              <th>参考期間</th>
+              <th>排気量</th>
+              <th>FOB価格</th>
+              <th>Best for resale in</th>
             </tr>
           </thead>
           <tbody>
@@ -408,8 +453,10 @@ tr:hover td { background: #fafbff; }
               <td><?= htmlspecialchars($r['model']) ?></td>
               <td><?= htmlspecialchars($r['fuel_type']) ?></td>
               <td><?= $r['mileage_km'] ? number_format($r['mileage_km']) . ' km' : '-' ?></td>
-              <td>$<?= number_format($r['price_low_usd']) ?> – $<?= number_format($r['price_high_usd']) ?></td>
-              <td><?= htmlspecialchars($r['basis_from'] . ' – ' . $r['basis_to']) ?></td>
+              <td><?= !empty($r['reference_price_usd']) ? '$' . number_format($r['reference_price_usd']) : '-' ?></td>
+              <td><?= !empty($r['engine_cc']) ? number_format((int)$r['engine_cc']) . ' cc' : '-' ?></td>
+              <td><?= !empty($r['reference_price_usd']) ? '$' . number_format((int)$r['reference_price_usd']) : '$' . number_format((int)($r['quote_spec_data']['target_price_usd'] ?? 0)) ?></td>
+              <td><?= htmlspecialchars($r['best_for_resale_in'] ?? '') ?></td>
             </tr>
             <?php endforeach; ?>
           </tbody>
