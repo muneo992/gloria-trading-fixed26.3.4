@@ -10,10 +10,10 @@ RewriteRule ^(.*)$ https://www.gloriatrading.com/$1 [R=301,L]
 RewriteRule ^admin(/|$) - [L]
 
 # 旧国別ページ → 新URL（301）
-RewriteRule ^ghana\.html$ /west-africa/ghana [R=301,L,NC]
-RewriteRule ^nigeria\.html$ /west-africa/nigeria [R=301,L,NC]
-RewriteRule ^benin\.html$ /west-africa/benin [R=301,L,NC]
-RewriteRule ^ivory-coast\.html$ /west-africa/ivory-coast [R=301,L,NC]
+RewriteRule ^ghana\.html$ west-africa/ghana [R=301,L,NC]
+RewriteRule ^nigeria\.html$ west-africa/nigeria [R=301,L,NC]
+RewriteRule ^benin\.html$ west-africa/benin [R=301,L,NC]
+RewriteRule ^ivory-coast\.html$ west-africa/ivory-coast [R=301,L,NC]
 
 # West Africa マーケットページ（クリーンURL）
 RewriteRule ^west-africa/ghana/?$ frontend/west_africa/ghana.html [L,NC]
