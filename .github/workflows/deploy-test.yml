@@ -1,4 +1,4 @@
-name: Deploy to Sakura Test Environment
+name: Deploy main to Sakura Test (gloria-test)
 
 on:
   workflow_dispatch:
@@ -30,4 +30,12 @@ jobs:
           ssh -i ~/.ssh/id_rsa -p "${{ secrets.SAKURA_PORT || '22' }}" -o StrictHostKeyChecking=no \
             "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
             "bash '${{ secrets.SAKURA_TEST_PATH }}/scripts/sakura-publish-links.sh' '${{ secrets.SAKURA_TEST_PATH }}'"
+
+      - name: Smoke test gloria-test site
+        run: |
+          set -e
+          sleep 3
+          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/"
+          curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/catalog.html"
+          curl -s --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/admin/index.php?diag=1" | grep -q "status: ok"
 
