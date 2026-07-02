@@ -7,14 +7,14 @@ Gloria Trading 車両管理画面 - 使い方
   https://あなたのドメイン/admin/
 
 【パスワードの設定方法】
-  パスワードはサーバーの admin/.htaccess ファイルで設定します。
-  .htaccess に以下の行を追加してください：
-  
-    SetEnv GLORIA_ADMIN_PASSWORD あなたの新しいパスワード
-  
-  ※ セキュリティのため、パスワードはGitHubには保存しません。
-  ※ さくらのレンタルサーバーのFTPまたはファイルマネージャーで
-     admin/.htaccess を直接編集してください。
+  次のいずれかで設定します（GitHub には保存しません）。
+
+  1) サーバー上の admin/password.txt にパスワードを1行で保存
+  2) admin/.htaccess の SetEnv 行のコメントを外して設定
+     SetEnv GLORIA_ADMIN_PASSWORD あなたの新しいパスワード
+
+  ※ HTTP Basic 認証（.htpasswd）は使用しません。
+     以前の Basic 認証設定が残っていると 500 エラー（白画面）になります。
 
 【できること】
   1. 車両の追加・編集・削除

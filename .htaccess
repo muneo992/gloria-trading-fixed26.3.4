@@ -1,0 +1,36 @@
+Options -Indexes
+DirectoryIndex index.html index.php frontend/index.html
+RewriteEngine On
+
+# wwwなしURLをwwwありにリダイレクト（SEO対策）
+RewriteCond %{HTTP_HOST} ^gloriatrading\.com$ [NC]
+RewriteRule ^(.*)$ https://www.gloriatrading.com/$1 [R=301,L]
+
+# admin はそのまま
+RewriteRule ^admin(/|$) - [L]
+
+# 旧国別ページ → 新URL（301）
+RewriteRule ^ghana\.html$ /west-africa/ghana [R=301,L,NC]
+RewriteRule ^nigeria\.html$ /west-africa/nigeria [R=301,L,NC]
+RewriteRule ^benin\.html$ /west-africa/benin [R=301,L,NC]
+RewriteRule ^ivory-coast\.html$ /west-africa/ivory-coast [R=301,L,NC]
+
+# West Africa マーケットページ（クリーンURL）
+RewriteRule ^west-africa/ghana/?$ frontend/west_africa/ghana.html [L,NC]
+RewriteRule ^west-africa/nigeria/?$ frontend/west_africa/nigeria.html [L,NC]
+RewriteRule ^west-africa/benin/?$ frontend/west_africa/benin.html [L,NC]
+RewriteRule ^west-africa/ivory-coast/?$ frontend/west_africa/ivory-coast.html [L,NC]
+
+# 静的アセット（frontend/ 配下）
+RewriteRule ^css/(.*)$ frontend/css/$1 [L]
+RewriteRule ^js/(.*)$ frontend/js/$1 [L]
+RewriteRule ^data/(.*)$ frontend/data/$1 [L]
+RewriteRule ^images/(.*)$ frontend/images/$1 [L]
+RewriteRule ^assets/(.*)$ frontend/assets/$1 [L]
+RewriteRule ^uploads/(.*)$ frontend/uploads/$1 [L]
+
+# トップページ
+RewriteRule ^$ frontend/index.html [L]
+
+# メインページ（ルートURLで .html を提供）
+RewriteRule ^([a-z0-9-]+\.html)$ frontend/$1 [L]

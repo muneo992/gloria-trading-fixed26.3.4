@@ -5,16 +5,10 @@ if (empty($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-define('VEHICLES_JSON', __DIR__ . '/../data/vehicles.json');
-define('IMAGES_DIR',    __DIR__ . '/../images/vehicles/');
+require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/vehicle-data.php';
+define('IMAGES_DIR', FRONTEND_DIR . '/images/vehicles/');
 
-function loadVehicles() {
-    if (!file_exists(VEHICLES_JSON)) return ['vehicles' => []];
-    return json_decode(file_get_contents(VEHICLES_JSON), true) ?: ['vehicles' => []];
-}
-function saveVehicles($data) {
-    return file_put_contents(VEHICLES_JSON, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-}
 
 $messages = [];
 $data     = loadVehicles();
@@ -83,7 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unass
     if ($img_path && $ref_id) {
         foreach ($vehicles as &$v) {
             if ($v['ref_id'] === $ref_id) {
-                $v['gallery'] = array_values(array_filter($v['gallery'] ?? [], fn($g) => $g !== $img_path));
+                $v['gallery'] = array_values(array_filter($v['gallery'] ?? [], function ($g) use ($img_path) {
+                    return $g !== $img_path;
+                }));
                 break;
             }
         }
@@ -105,7 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unass
 $focus_img = $_GET['img'] ?? '';
 
 // 未割り当て画像
-$unassigned = array_filter($all_images, fn($img) => empty($assigned_map[$img]));
+$unassigned = array_filter($all_images, function ($img) use ($assigned_map) {
+    return empty($assigned_map[$img]);
+});
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -322,12 +320,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <script>
 // 車両データ（PHP → JS）
-const vehicles = <?= json_encode(array_map(fn($v) => [
-    'ref_id'          => $v['ref_id'],
-    'display_name_en' => $v['display_name_en'] ?? '',
-    'thumb'           => !empty($v['gallery'][0]) ? '../' . $v['gallery'][0] : '',
-    'gallery'         => $v['gallery'] ?? []
-], $vehicles), JSON_UNESCAPED_UNICODE) ?>;
+const vehicles = <?= json_encode(array_map(function ($v) {
+    return [
+        'ref_id'          => $v['ref_id'],
+        'display_name_en' => $v['display_name_en'] ?? '',
+        'thumb'           => !empty($v['gallery'][0]) ? '../' . $v['gallery'][0] : '',
+        'gallery'         => $v['gallery'] ?? []
+    ];
+}, $vehicles), JSON_UNESCAPED_UNICODE) ?>;
 
 let selectedImg = <?= $focus_img ? json_encode($focus_img) : 'null' ?>;
 let filterMode = 'all';

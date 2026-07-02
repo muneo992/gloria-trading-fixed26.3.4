@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="/">
+  <script>!function(){var m=location.pathname.match(/^(\/gloria-test)(?:\/|$)/);if(m){var b=document.querySelector("base");if(b)b.href=m[1]+"/"}}();</script>
+  
+  <meta name="description" content="Submit a dealer RFQ to Gloria Trading for Japanese used car auction sourcing, repeat orders, and FOB, C&amp;F, or CIF export quotations.">
+  <title>Dealer RFQ | Request Japanese Used Car Quotes</title>
+  <link rel="canonical" href="https://gloriatrading.com/rfq.html">
+  <meta property="og:title" content="Dealer RFQ | Request Japanese Used Car Quotes">
+  <meta property="og:description" content="Submit a dealer RFQ to Gloria Trading for Japanese used car auction sourcing, repeat orders, and FOB, C&amp;F, or CIF export quotations.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://gloriatrading.com/rfq.html">
+  <meta property="og:image" content="https://gloriatrading.com/images/og-gloria-trading.jpg">
+  <meta property="og:site_name" content="Gloria Trading">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Dealer RFQ | Request Japanese Used Car Quotes">
+  <meta name="twitter:description" content="Submit a dealer RFQ to Gloria Trading for Japanese used car auction sourcing, repeat orders, and FOB, C&amp;F, or CIF export quotations.">
+  <meta name="twitter:image" content="https://gloriatrading.com/images/og-gloria-trading.jpg">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://gloriatrading.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Dealer RFQ",
+      "item": "https://gloriatrading.com/rfq.html"
+    }
+  ]
+}
+  </script>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-FLDKTQZ8MT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-FLDKTQZ8MT');
+</script>
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="navbar">
+      <div class="container">
+        <div class="navbar-brand">
+          <a href="index.html" class="logo">
+            <img src="images/gloria-trading-logo.jpg" alt="Gloria Trading" style="height:48px; width:48px; object-fit:cover; border-radius:6px; vertical-align:middle; margin-right:8px;">
+            <span style="vertical-align:middle;">Gloria Trading</span>
+          </a>
+        </div>
+        <button class="navbar-toggle" id="navToggle" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+        <ul class="navbar-menu" id="navMenu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="catalog.html">Catalog</a></li>
+          <li><a href="dealers.html">For Dealers</a></li>
+          <li><a href="how-it-works.html">How It Works</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="shipping-payment.html">Shipping &amp; Payment</a></li>
+          <li><a href="documents-faq.html">Documents &amp; FAQ</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li class="markets-nav-item">
+            <a href="#">Markets &#9660;</a>
+            <div class="market-dropdown">
+              <a href="/west-africa/ghana">Ghana</a>
+              <a href="/west-africa/nigeria">Nigeria</a>
+              <a href="/west-africa/benin">Benin</a>
+              <a href="/west-africa/ivory-coast">C&ocirc;te d&apos;Ivoire</a>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <section class="page-header">
+    <div class="container">
+      <h1>Dealer RFQ</h1>
+      <p>Tell us your buyer type, company details, resale market, preferred models, monthly volume, and trade term. We will contact you shortly via WhatsApp or email.</p>
+    </div>
+  </section>
+
+  <section style="padding: 4rem 0; background: var(--gray-100);">
+    <div class="container">
+      <div style="max-width: 760px; margin: 0 auto;">
+
+        <div id="status-message" class="status-message" style="display:none;"></div>
+
+        <div class="form-card">
+          <div class="notice-box" style="margin-bottom: 1.5rem;">
+            <h4>For an Accurate Dealer Quote</h4>
+            <p>To prepare a practical dealer quotation, please tell us your buyer type, company name, monthly purchase volume, target resale market, preferred trade term, destination port, budget, model list, and whether you need auction sheet confirmation.</p>
+          </div>
+
+          <form id="rfq-form">
+
+            <!-- Dealer Information -->
+            <fieldset>
+              <legend>Dealer / Buyer Information</legend>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="buyer_type">Buyer Type <span style="color:#c0392b;">*</span></label>
+                  <select id="buyer_type" name="buyer_type" required>
+                    <option value="">Select buyer type</option>
+                    <option value="Dealer">Dealer</option>
+                    <option value="Importer">Importer</option>
+                    <option value="Fleet buyer">Fleet buyer</option>
+                    <option value="Individual">Individual</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="company_name">Company Name</label>
+                  <input type="text" id="company_name" name="company_name" placeholder="e.g. ABC Motors Ltd.">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="monthly_volume">Monthly Purchase Volume</label>
+                  <select id="monthly_volume" name="monthly_volume">
+                    <option value="">Select volume</option>
+                    <option value="1-2 units">1-2 units</option>
+                    <option value="3-5 units">3-5 units</option>
+                    <option value="6-10 units">6-10 units</option>
+                    <option value="10+ units">10+ units</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="target_resale_market">Target Resale Market</label>
+                  <select id="target_resale_market" name="target_resale_market">
+                    <option value="">Select market</option>
+                    <option value="Ghana">Ghana</option>
+                    <option value="Nigeria">Nigeria</option>
+                    <option value="Benin">Benin</option>
+                    <option value="Côte d’Ivoire">Côte d’Ivoire</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+
+            <!-- Vehicle Information -->
+            <fieldset>
+              <legend>Vehicle / Sourcing Requirements</legend>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="make">Make</label>
+                  <input type="text" id="make" name="vehicle_make" placeholder="e.g. Toyota">
+                </div>
+                <div class="form-group">
+                  <label for="model">Model</label>
+                  <input type="text" id="model" name="vehicle_model" placeholder="e.g. Land Cruiser">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="year">Preferred Year Range</label>
+                  <input type="text" id="year" name="vehicle_year" placeholder="e.g. 2018–2020">
+                </div>
+                <div class="form-group">
+                  <label for="budget">Target Budget per Unit in USD <span style="color:#c0392b;">*</span></label>
+                  <input type="text" id="budget" name="budget" required placeholder="e.g. USD 5,000 per unit FOB Japan">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="country">Destination Country <span style="color:#c0392b;">*</span></label>
+                  <select id="country" name="destination_country" required>
+                    <option value="">Select country</option>
+                    <option value="Ghana">Ghana</option>
+                    <option value="Nigeria">Nigeria</option>
+                    <option value="Benin">Benin</option>
+                    <option value="Côte d’Ivoire">Côte d’Ivoire</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="destination">Destination Port</label>
+                  <input type="text" id="destination" name="destination" placeholder="e.g. Tema / Lagos / Cotonou / Abidjan">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="intended_use">Intended Use</label>
+                  <select id="intended_use" name="intended_use">
+                    <option value="">Select use</option>
+                    <option value="Retail resale">Retail resale</option>
+                    <option value="Taxi resale">Taxi resale</option>
+                    <option value="Business / executive resale">Business / executive resale</option>
+                    <option value="Commercial / delivery resale">Commercial / delivery resale</option>
+                    <option value="School / church / institution resale">School / church / institution resale</option>
+                    <option value="Mixed stock / other">Mixed stock / other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="transmission">Transmission</label>
+                  <select id="transmission" name="transmission">
+                    <option value="">No preference</option>
+                    <option value="Automatic">Automatic</option>
+                    <option value="Manual">Manual</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="purchase_timing">Purchase Timing</label>
+                  <select id="purchase_timing" name="purchase_timing">
+                    <option value="">Select timing</option>
+                    <option value="Ready now">Ready now</option>
+                    <option value="Within 1 month">Within 1 month</option>
+                    <option value="Later / researching prices">Later / researching prices</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="mileage">Preferred Mileage</label>
+                  <input type="text" id="mileage" name="mileage" placeholder="e.g. under 100,000 km">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="trade_term">Preferred Trade Term</label>
+                  <select id="trade_term" name="trade_term">
+                    <option value="">Select term</option>
+                    <option value="FOB Japan">FOB Japan</option>
+                    <option value="C&F">C&amp;F</option>
+                    <option value="CIF">CIF</option>
+                    <option value="Not sure">Not sure</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="auction_sheet">Need Auction Sheet?</label>
+                  <select id="auction_sheet" name="auction_sheet">
+                    <option value="">Select option</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="If available">If available</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="preferred_models">Preferred Models List</label>
+                <textarea id="preferred_models" name="preferred_models" rows="3" placeholder="e.g. Corolla, Vitz, Probox, Hiace, Aqua, Fit"></textarea>
+              </div>
+            </fieldset>
+
+            <!-- Contact Info -->
+            <fieldset>
+              <legend>Contact Person</legend>
+              <div class="form-group">
+                <label for="name">Full Name <span style="color:#c0392b;">*</span></label>
+                <input type="text" id="name" name="name" required placeholder="e.g. John Mensah">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="email">Email Address</label>
+                  <input type="email" id="email" name="email" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                  <label for="phone">Phone / WhatsApp <span style="color:#c0392b;">*</span></label>
+                  <input type="tel" id="phone" name="phone" required placeholder="+233...">
+                </div>
+              </div>
+            </fieldset>
+
+            <!-- Message -->
+            <fieldset>
+              <legend>Message</legend>
+              <div class="form-group">
+                <label for="message">Additional Request</label>
+                <textarea id="message" name="message" rows="5" placeholder="Please describe target FOB/C&F/CIF price, preferred colours, grade, repair history restrictions, port, repeat-order plan, or similar models you can accept."></textarea>
+              </div>
+            </fieldset>
+
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem;">
+              <button id="emailSubmitBtn" type="button" class="btn btn-primary btn-lg" style="flex: 1;">Send Dealer RFQ via Email</button>
+              <button id="whatsappBtn" type="button" class="btn btn-whatsapp btn-lg" style="flex: 1;">Send Dealer RFQ via WhatsApp</button>
+            </div>
+
+          </form>
+        </div>
+
+        <div class="notice-box" style="margin-top: 2rem;">
+          <h4>Note</h4>
+          <p>All vehicles we export are <strong>Right-Hand Drive (RHD)</strong> only. Please confirm RHD is legal in your country before submitting a request.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <a href="index.html" class="logo" style="display:flex; align-items:center; gap:8px;">
+            <img src="images/gloria-trading-logo.jpg" alt="Gloria Trading" style="height:40px; width:40px; object-fit:cover; border-radius:6px;">
+            <span>Gloria Trading</span>
+          </a>
+          <p>Japanese Used Car Sourcing Partner for Dealers and Importers.<br>Right-Hand Drive Specialists since 2006.<br>Natori, Miyagi, Japan.</p>
+        </div>
+        <div class="footer-section">
+          <h4>Navigation</h4>
+          <ul>
+            <li><a href="catalog.html">Catalog</a></li>
+            <li><a href="dealers.html">For Dealers</a></li>
+            <li><a href="how-it-works.html">How It Works</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="documents-faq.html">Documents &amp; FAQ</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="shipping-payment.html">Shipping &amp; Payment</a></li>
+            <li><a href="rfq.html">Dealer RFQ</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Contact</h4>
+          <p>+81-22-398-4475</p>
+          <p>WhatsApp: +81-90-7667-1825</p>
+          <p>Natori, Miyagi, Japan</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 Gloria Trading. All rights reserved. | RHD only. Reference vehicles are past transaction examples, not in stock.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('navToggle').addEventListener('click', function() {
+      document.getElementById('navMenu').classList.toggle('open');
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script src="js/rfq-form.js"></script>
+  <script src="js/whatsapp-template.js"></script>
+</body>
+</html>

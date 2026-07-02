@@ -1,6 +1,5 @@
 [build]
-  command = "rm -rf netlify_publish && mkdir -p netlify_publish && tar --exclude='./netlify_publish' --exclude='./.git' --exclude='./.github' --exclude='./admin' --exclude='*.php' -cf - . | tar -xf - -C netlify_publish"
-  publish = "netlify_publish"
+  publish = "frontend"
 
 [[headers]]
   for = "/*"
@@ -23,3 +22,45 @@
   for = "/images/vehicles/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+
+# West Africa マーケット（クリーンURL）
+[[redirects]]
+  from = "/west-africa/ghana"
+  to = "/west_africa/ghana.html"
+  status = 200
+
+[[redirects]]
+  from = "/west-africa/nigeria"
+  to = "/west_africa/nigeria.html"
+  status = 200
+
+[[redirects]]
+  from = "/west-africa/benin"
+  to = "/west_africa/benin.html"
+  status = 200
+
+[[redirects]]
+  from = "/west-africa/ivory-coast"
+  to = "/west_africa/ivory-coast.html"
+  status = 200
+
+# 旧国別URL → 新URL（301）
+[[redirects]]
+  from = "/ghana.html"
+  to = "/west-africa/ghana"
+  status = 301
+
+[[redirects]]
+  from = "/nigeria.html"
+  to = "/west-africa/nigeria"
+  status = 301
+
+[[redirects]]
+  from = "/benin.html"
+  to = "/west-africa/benin"
+  status = 301
+
+[[redirects]]
+  from = "/ivory-coast.html"
+  to = "/west-africa/ivory-coast"
+  status = 301
