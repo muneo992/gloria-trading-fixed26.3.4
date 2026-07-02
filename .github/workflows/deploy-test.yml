@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: main
 
       - name: Deploy
         run: |
@@ -23,5 +23,11 @@ jobs:
           echo "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "${{ secrets.SAKURA_PORT || '22' }}" -H "${{ secrets.SAKURA_HOST }}" >> ~/.ssh/known_hosts
-          rsync -avz --exclude='.git*' --exclude='.github' -e "ssh -i ~/.ssh/id_rsa -p ${{ secrets.SAKURA_PORT || '22' }} -o StrictHostKeyChecking=no" ./ ${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}:${{ secrets.SAKURA_TEST_PATH }}/
+          rsync -avz --exclude='.git*' --exclude='.github' --exclude='admin/.htpasswd' --exclude='admin/password.txt' -e "ssh -i ~/.ssh/id_rsa -p ${{ secrets.SAKURA_PORT || '22' }} -o StrictHostKeyChecking=no" ./ ${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}:${{ secrets.SAKURA_TEST_PATH }}/
+
+      - name: Publish root symlinks for Sakura
+        run: |
+          ssh -i ~/.ssh/id_rsa -p "${{ secrets.SAKURA_PORT || '22' }}" -o StrictHostKeyChecking=no \
+            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
+            "bash '${{ secrets.SAKURA_TEST_PATH }}/scripts/sakura-publish-links.sh' '${{ secrets.SAKURA_TEST_PATH }}'"
 

@@ -1,7 +1,42 @@
 <?php
-session_start();
+if (isset($_GET['diag'])) {
+    header('Content-Type: text/plain; charset=UTF-8');
+    $frontend_dir = dirname(__DIR__) . '/frontend';
+    $checks = [
+        'php_version' => PHP_VERSION,
+        'script' => __FILE__,
+        'frontend_dir' => $frontend_dir,
+        'frontend_dir_exists' => is_dir($frontend_dir) ? 'yes' : 'no',
+        'vehicles_json' => $frontend_dir . '/data/vehicles.json',
+        'vehicles_json_exists' => is_file($frontend_dir . '/data/vehicles.json') ? 'yes' : 'no',
+        'legacy_vehicles_json' => dirname(__DIR__) . '/data/vehicles.json',
+        'legacy_vehicles_json_exists' => is_file(dirname(__DIR__) . '/data/vehicles.json') ? 'yes' : 'no',
+        'bootstrap_php' => __DIR__ . '/bootstrap.php',
+        'bootstrap_exists' => is_file(__DIR__ . '/bootstrap.php') ? 'yes' : 'no',
+        'vehicle_data_php' => __DIR__ . '/vehicle-data.php',
+        'vehicle_data_exists' => is_file(__DIR__ . '/vehicle-data.php') ? 'yes' : 'no',
+        'htaccess' => __DIR__ . '/.htaccess',
+        'htaccess_exists' => is_file(__DIR__ . '/.htaccess') ? 'yes' : 'no',
+        'password_txt' => __DIR__ . '/password.txt',
+        'password_configured' => (is_readable(__DIR__ . '/password.txt') && trim((string) file_get_contents(__DIR__ . '/password.txt')) !== '') ? 'yes' : 'no',
+    ];
+    foreach ($checks as $key => $value) {
+        echo $key . ': ' . $value . "\n";
+    }
+    if (is_readable(__DIR__ . '/.htaccess')) {
+        echo "\n--- admin/.htaccess ---\n";
+        echo file_get_contents(__DIR__ . '/.htaccess');
+    }
+    echo "\nstatus: ok\n";
+    exit;
+}
 
 require_once __DIR__ . '/bootstrap.php';
+gt_admin_register_error_handler();
+gt_admin_verify_environment(false);
+
+session_start();
+
 require_once __DIR__ . '/vehicle-data.php';
 
 $admin_password = getConfiguredAdminPassword();
@@ -160,7 +195,7 @@ tr:hover td { background: #fafbff; }
     <a href="import.php">📥 インポート</a>
     <a href="export.php">📤 エクスポート</a>
     <a href="change-password.php">🔐 パスワード変更</a>
-    <a href="../index.html" target="_blank">サイトを見る</a>
+    <a href="/" target="_blank">サイトを見る</a>
     <a href="?logout=1">ログアウト</a>
   </div>
 </div>

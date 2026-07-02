@@ -1,3 +1,15 @@
-# PHPセッションによるアクセス制御
-# このフォルダはPHPログイン認証で保護されています
+# PHP session login only (no HTTP Basic Auth)
 Options -Indexes
+
+# Disable inherited Basic Auth from parent/server config (prevents 500 on wrong AuthUserFile path)
+<IfModule mod_authz_core.c>
+  Require all granted
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Allow from all
+  Satisfy any
+</IfModule>
+
+# Optional password via server env (uncomment on Sakura and set your password):
+# SetEnv GLORIA_ADMIN_PASSWORD your-password-here

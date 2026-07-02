@@ -87,6 +87,15 @@ jobs:
             "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
             "set -e; cp '$SAKURA_PROD_PATH/frontend/data/vehicles.json' '$SAKURA_PROD_PATH/vehicles.json'; test -s '$SAKURA_PROD_PATH/vehicles.json'"
 
+      - name: Publish root symlinks for Sakura
+        run: |
+          ssh \
+            -i ~/.ssh/sakura_deploy_key \
+            -p "${{ secrets.SAKURA_PORT || '22' }}" \
+            -o StrictHostKeyChecking=yes \
+            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
+            "bash '$SAKURA_PROD_PATH/scripts/sakura-publish-links.sh' '$SAKURA_PROD_PATH'"
+
       - name: Smoke test production pages
         run: |
           set -e

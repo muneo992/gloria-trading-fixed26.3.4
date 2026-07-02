@@ -1,5 +1,7 @@
-Options -Indexes
+Options -Indexes +FollowSymLinks
+DirectoryIndex index.html index.php frontend/index.html
 RewriteEngine On
+RewriteBase /
 
 # wwwなしURLをwwwありにリダイレクト（SEO対策）
 RewriteCond %{HTTP_HOST} ^gloriatrading\.com$ [NC]
