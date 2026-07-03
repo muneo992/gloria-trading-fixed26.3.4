@@ -39,6 +39,10 @@ jobs:
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/catalog.html"
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/ghana"
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/cote-divoire"
+          curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/ghana.html" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/ghana"
+          curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/nigeria.html" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/nigeria"
+          curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/benin.html" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/benin"
+          curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/ivory-coast.html" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/cote-divoire"
           curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/ivory-coast" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/cote-divoire"
           curl -s --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/admin/index.php?diag=1" | grep -q "status: ok"
 
