@@ -13,13 +13,13 @@ RewriteRule ^admin(/|$) - [L]
 RewriteRule ^ghana\.html$ /west-africa/ghana [R=301,L,NC]
 RewriteRule ^nigeria\.html$ /west-africa/nigeria [R=301,L,NC]
 RewriteRule ^benin\.html$ /west-africa/benin [R=301,L,NC]
-RewriteRule ^ivory-coast\.html$ /west-africa/cote-divoire [R=301,L,NC]
+RewriteRule ^ivory-coast\.html$ west-africa/cote-divoire [R=301,L,NC]
 
 # West Africa マーケットページ（クリーンURL）
 RewriteRule ^west-africa/ghana/?$ frontend/west_africa/ghana.html [L,NC]
 RewriteRule ^west-africa/nigeria/?$ frontend/west_africa/nigeria.html [L,NC]
 RewriteRule ^west-africa/benin/?$ frontend/west_africa/benin.html [L,NC]
-RewriteRule ^west-africa/ivory-coast/?$ /west-africa/cote-divoire [R=301,L,NC]
+RewriteRule ^west-africa/ivory-coast/?$ west-africa/cote-divoire [R=301,L,NC]
 RewriteRule ^west-africa/cote-divoire/?$ frontend/west_africa/cote-divoire.html [L,NC]
 
 # 静的アセット（frontend/ 配下）
