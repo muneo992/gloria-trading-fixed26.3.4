@@ -6,6 +6,12 @@ RewriteEngine On
 RewriteCond %{HTTP_HOST} ^gloriatrading\.com$ [NC]
 RewriteRule ^(.*)$ https://www.gloriatrading.com/$1 [R=301,L]
 
+# sitemap / robots（ルート直下の静的ファイル）
+RewriteRule ^(sitemap\.xml|robots\.txt)$ - [L]
+
+# 旧 sitemap パス → ルートへ
+RewriteRule ^frontend/sitemap\.xml$ /sitemap.xml [R=301,L]
+
 # admin はそのまま
 RewriteRule ^admin(/|$) - [L]
 
