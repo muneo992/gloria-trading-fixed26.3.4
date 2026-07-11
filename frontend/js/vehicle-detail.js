@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const getMileage = (v) => Number(v.mileage_km || 0);
   const getMileageDisplay = (v) => getMileage(v) ? `${getMileage(v).toLocaleString()} km` : "-";
   const getPrice = (v) => Number(v.reference_price_usd || 0);
-  const getPriceDisplayNumber = (v) => getPrice(v) ? getPrice(v).toLocaleString() : "Ask";
+  const getPriceDisplay = (v) => getPrice(v) ? `$${getPrice(v).toLocaleString()}` : "Ask";
   const isDateLike = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 
   fetch(`data/vehicles.json?ts=${Date.now()}`, { cache: "no-store" })
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
       set("spec-fuel-type", vehicle.fuel_type || "-");
       set("spec-transmission", vehicle.transmission || "-");
       set("spec-mileage", getMileageDisplay(vehicle));
-      set("reference-price", getPriceDisplayNumber(vehicle));
+      set("reference-price", getPriceDisplay(vehicle));
 
       const priceLabel = document.getElementById("reference-price-label");
       if (priceLabel) priceLabel.textContent = "FOB Price";
