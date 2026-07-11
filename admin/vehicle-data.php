@@ -19,6 +19,40 @@ function gt_string_value($value) {
     return trim((string)($value ?? ''));
 }
 
+/**
+ * Canonical transmission values for admin + site: Manual / Automatic / CVT.
+ * Accepts auction/CSV shorthand such as AT, MT, FAT, IAT.
+ */
+function gt_normalize_transmission($value) {
+    $raw = gt_string_value($value);
+    if ($raw === '') return '';
+
+    $compact = strtoupper(preg_replace('/[^A-Za-z]/', '', $raw));
+    if ($compact === '') return $raw;
+
+    if (in_array($compact, ['CVT', 'CVTF', 'IVT'], true)) {
+        return 'CVT';
+    }
+
+    if (in_array($compact, ['MT', 'FMT', 'IMT', 'SMT', 'MANUAL', 'MAN'], true)
+        || (strpos($compact, 'MT') !== false && strpos($compact, 'AT') === false && strpos($compact, 'CVT') === false)) {
+        return 'Manual';
+    }
+
+    if (in_array($compact, ['AT', 'FAT', 'IAT', 'DAT', 'CAT', 'AAT', 'AUTOMATIC', 'AUTO'], true)
+        || strpos($compact, 'AT') !== false
+        || strpos($compact, 'AUTO') !== false) {
+        return 'Automatic';
+    }
+
+    $lower = strtolower($raw);
+    if ($lower === 'manual') return 'Manual';
+    if ($lower === 'automatic') return 'Automatic';
+    if ($lower === 'cvt') return 'CVT';
+
+    return $raw;
+}
+
 function gt_gallery_value($v) {
     $images = [];
     if (!empty($v['gallery']) && is_array($v['gallery'])) {
@@ -238,7 +272,7 @@ function normalizeVehicleRecord($v) {
         'grade'               => gt_string_value($v['grade'] ?? ''),
         'body_type'           => gt_string_value($v['body_type'] ?? $v['body'] ?? ''),
         'fuel_type'           => gt_string_value($v['fuel_type'] ?? $v['fuel'] ?? ''),
-        'transmission'        => gt_string_value($v['transmission'] ?? ''),
+        'transmission'        => gt_normalize_transmission($v['transmission'] ?? ''),
         'mileage_km'          => gt_int_value($v['mileage_km'] ?? $v['mileage'] ?? 0),
         'engine_cc'           => gt_int_value($v['engine_cc'] ?? $v['displacement_cc'] ?? $v['engine_displacement_cc'] ?? 0),
         'reference_price_usd' => gt_int_value($reference_price),

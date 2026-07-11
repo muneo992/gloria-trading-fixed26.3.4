@@ -327,6 +327,9 @@ function gt_apply_master_csv_upload($field, $current_ref, $vehicle, &$errors, $a
             $value = gt_cell($matched, $col_map[$field_name] ?? null);
             if ($value !== '') $vehicle[$field_name] = $value;
         }
+        if (!empty($vehicle['transmission'])) {
+            $vehicle['transmission'] = gt_normalize_transmission($vehicle['transmission']);
+        }
 
         $year = gt_cell($matched, $col_map['year'] ?? null);
         if ($year !== '') $vehicle['year'] = (int)$year;
@@ -424,7 +427,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         'model'            => trim($_POST['model'] ?? ''),
         'body_type'        => trim($_POST['body_type'] ?? ''),
         'fuel_type'        => trim($_POST['fuel_type'] ?? ''),
-        'transmission'     => trim($_POST['transmission'] ?? ''),
+        'transmission'     => gt_normalize_transmission($_POST['transmission'] ?? ''),
         'mileage_km'       => (int)str_replace(',', '', $_POST['mileage_km'] ?? '0'),
         'engine_cc'        => (int)str_replace(',', '', $_POST['engine_cc'] ?? '0'),
         'reference_price_usd' => (int)str_replace(',', '', $_POST['reference_price_usd'] ?? '0'),
@@ -789,10 +792,14 @@ textarea { resize: vertical; min-height: 80px; }
           <div class="form-group">
             <label>ミッション（Transmission）</label>
             <select name="transmission">
-              <?php foreach (['Manual','Automatic','CVT'] as $tr): ?>
-              <option value="<?= $tr ?>" <?= ($vehicle['transmission'] === $tr) ? 'selected' : '' ?>><?= $tr ?></option>
+              <?php
+                $current_transmission = gt_normalize_transmission($vehicle['transmission'] ?? '');
+                foreach (['Manual','Automatic','CVT'] as $tr):
+              ?>
+              <option value="<?= $tr ?>" <?= ($current_transmission === $tr) ? 'selected' : '' ?>><?= $tr ?></option>
               <?php endforeach; ?>
             </select>
+            <div class="hint">CSVの AT / MT は保存時に Automatic / Manual へ統一されます。</div>
           </div>
           <div class="form-group">
             <label>走行距離 km（Mileage）</label>

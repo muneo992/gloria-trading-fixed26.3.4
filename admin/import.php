@@ -150,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             'model'            => trim($row[$col_map['model'] ?? -1] ?? ''),
                             'body_type'        => trim($row[$col_map['body_type'] ?? -1] ?? ''),
                             'fuel_type'        => trim($row[$col_map['fuel_type'] ?? -1] ?? 'Diesel'),
-                            'transmission'     => trim($row[$col_map['transmission'] ?? -1] ?? 'Manual'),
+                            'transmission'     => gt_normalize_transmission($row[$col_map['transmission'] ?? -1] ?? 'Manual'),
                             'mileage_km'       => (int)str_replace(',', '', $row[$col_map['mileage_km'] ?? -1] ?? '0'),
                             'reference_price_usd' => $reference_price,
                             'engine_cc'        => (int)str_replace(',', '', $row[$col_map['engine_cc'] ?? -1] ?? '0'),
