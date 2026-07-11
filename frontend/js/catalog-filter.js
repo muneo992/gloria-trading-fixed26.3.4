@@ -106,8 +106,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const ref = v.ref_id || "";
       const priceDisplay = getPriceDisplay(v);
       const modelName = v.model || "this model";
-      const resaleMarkets = v.resale_markets || "Ghana / Nigeria / Benin / Cote d'Ivoire";
+      const resaleMarkets = v.best_for_resale_in || "Ghana / Nigeria / Benin / Côte d'Ivoire";
       const typicalBuyerUse = v.typical_buyer_use || "Retail resale, private use, or fleet demand";
+      const similarUnits = v.similar_units || `Auction sourcing available for ${modelName}`;
+      const bulkRepeat = v.bulk_repeat_order || "Dealer RFQ supported";
 
       const card = document.createElement("div");
       card.className = "vehicle-card";
@@ -129,8 +131,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <table class="spec-table" style="font-size: 0.82rem; margin: 0.9rem 0;">
             <tr><td class="spec-label">Best for resale in</td><td class="spec-value">${resaleMarkets}</td></tr>
             <tr><td class="spec-label">Typical buyer use</td><td class="spec-value">${typicalBuyerUse}</td></tr>
-            <tr><td class="spec-label">Similar units</td><td class="spec-value">Auction sourcing available for ${modelName}</td></tr>
-            <tr><td class="spec-label">Bulk / repeat order</td><td class="spec-value">Dealer RFQ supported</td></tr>
+            <tr><td class="spec-label">Similar units</td><td class="spec-value">${similarUnits}</td></tr>
+            <tr><td class="spec-label">Bulk / repeat order</td><td class="spec-value">${bulkRepeat}</td></tr>
           </table>
           <p class="vehicle-note">Not in stock. Similar units can be sourced from Japanese auctions for dealer, importer, or fleet orders.</p>
           <a href="vehicle-detail.html?ref=${encodeURIComponent(ref)}" class="btn btn-primary btn-block">Request Dealer Quote for Similar</a>

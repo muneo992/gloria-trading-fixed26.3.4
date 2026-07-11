@@ -1336,6 +1336,55 @@ small {
   justify-content: center;
 }
 
+/* Dealer Reference Guidance (vehicle detail) */
+.dealer-guidance-box {
+  margin-top: 1.75rem;
+  background-color: var(--green-pale);
+  border-left: 5px solid var(--green-dark);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.35rem;
+}
+.dealer-guidance-box h3 {
+  margin: 0 0 1rem;
+  color: var(--green-dark);
+  font-size: 1.05rem;
+}
+.dealer-guidance-list {
+  margin: 0;
+}
+.dealer-guidance-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 0.75rem 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid rgba(45,106,79,0.12);
+}
+.dealer-guidance-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.dealer-guidance-row:first-child {
+  padding-top: 0;
+}
+.dealer-guidance-row dt {
+  margin: 0;
+  font-weight: 700;
+  color: var(--green-dark);
+  font-size: 0.9rem;
+}
+.dealer-guidance-row dd {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .dealer-guidance-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
 /* CTA box (vehicle detail sidebar) */
 .cta-box {
   background-color: var(--gray-100);
