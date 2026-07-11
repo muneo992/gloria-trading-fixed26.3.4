@@ -7,7 +7,53 @@
   <script>!function(){var m=location.pathname.match(/^(\/gloria-test)(?:\/|$)/);if(m){var b=document.querySelector("base");if(b)b.href=m[1]+"/"}}();</script>
   <meta name="description" content="Reference vehicle details. This is a past transaction example, not in stock.">
   <title>Vehicle Details - Gloria Trading</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=guidance-20260712">
+  <style>
+    /* Ensure guidance styles apply even if an older style.css is cached */
+    .dealer-guidance-box {
+      margin-top: 1.75rem;
+      background-color: #d6f0e0;
+      border-left: 5px solid #005a2b;
+      border-radius: 10px;
+      padding: 1.25rem 1.35rem;
+    }
+    .dealer-guidance-box h3 {
+      margin: 0 0 1rem;
+      color: #005a2b;
+      font-size: 1.05rem;
+    }
+    .dealer-guidance-list { margin: 0; }
+    .dealer-guidance-row {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 0.75rem 1rem;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid rgba(45,106,79,0.12);
+    }
+    .dealer-guidance-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .dealer-guidance-row:first-child { padding-top: 0; }
+    .dealer-guidance-row dt {
+      margin: 0;
+      font-weight: 700;
+      color: #005a2b;
+      font-size: 0.9rem;
+    }
+    .dealer-guidance-row dd {
+      margin: 0;
+      color: #6c757d;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    @media (max-width: 640px) {
+      .dealer-guidance-row {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+      }
+    }
+  </style>
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-FLDKTQZ8MT"></script>
 <script>
