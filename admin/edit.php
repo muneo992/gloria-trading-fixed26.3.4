@@ -330,6 +330,12 @@ function gt_apply_master_csv_upload($field, $current_ref, $vehicle, &$errors, $a
         if (!empty($vehicle['transmission'])) {
             $vehicle['transmission'] = gt_normalize_transmission($vehicle['transmission']);
         }
+        if (!empty($vehicle['body_type'])) {
+            $vehicle['body_type'] = gt_normalize_body_type($vehicle['body_type']);
+        }
+        if (!empty($vehicle['fuel_type'])) {
+            $vehicle['fuel_type'] = gt_normalize_fuel_type($vehicle['fuel_type']);
+        }
 
         $year = gt_cell($matched, $col_map['year'] ?? null);
         if ($year !== '') $vehicle['year'] = (int)$year;
@@ -425,9 +431,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         'year'             => (int)($_POST['year'] ?? 0),
         'make'             => trim($_POST['make'] ?? ''),
         'model'            => trim($_POST['model'] ?? ''),
-        'body_type'        => trim($_POST['body_type'] ?? ''),
-        'fuel_type'        => trim($_POST['fuel_type'] ?? ''),
-        'transmission'     => gt_normalize_transmission($_POST['transmission'] ?? ''),
+        'body_type'        => gt_normalize_body_type($_POST['body_type'] ?? '') ?: ($is_edit ? gt_normalize_body_type($vehicle['body_type'] ?? '') : ''),
+        'fuel_type'        => gt_normalize_fuel_type($_POST['fuel_type'] ?? '') ?: ($is_edit ? gt_normalize_fuel_type($vehicle['fuel_type'] ?? '') : ''),
+        'transmission'     => gt_normalize_transmission($_POST['transmission'] ?? '') ?: ($is_edit ? gt_normalize_transmission($vehicle['transmission'] ?? '') : ''),
         'mileage_km'       => (int)str_replace(',', '', $_POST['mileage_km'] ?? '0'),
         'engine_cc'        => (int)str_replace(',', '', $_POST['engine_cc'] ?? '0'),
         'reference_price_usd' => (int)str_replace(',', '', $_POST['reference_price_usd'] ?? '0'),
@@ -767,10 +773,16 @@ textarea { resize: vertical; min-height: 80px; }
           <div class="form-group">
             <label>ボディタイプ（Body Type）</label>
             <select name="body_type">
-              <?php foreach (['Van','Sedan','Hatchback','SUV','Pickup','Wagon','Minivan','Truck','Bus','Other'] as $bt): ?>
-              <option value="<?= $bt ?>" <?= ($vehicle['body_type'] === $bt) ? 'selected' : '' ?>><?= $bt ?></option>
+              <?php
+                $body_options = ['Van','Sedan','Hatchback','SUV','Pickup','Wagon','Minivan','Truck','Bus','Other'];
+                $current_body = gt_normalize_body_type($vehicle['body_type'] ?? '');
+              ?>
+              <option value="">-- Select --</option>
+              <?php foreach ($body_options as $bt): ?>
+              <option value="<?= $bt ?>" <?= ($current_body === $bt) ? 'selected' : '' ?>><?= $bt ?></option>
               <?php endforeach; ?>
             </select>
+            <div class="hint">「Hatchback / Compact」「Station Wagon」などは保存時に選択肢の表記へ統一されます。</div>
           </div>
         </div>
       </div>
@@ -784,14 +796,19 @@ textarea { resize: vertical; min-height: 80px; }
           <div class="form-group">
             <label>燃料タイプ（Fuel Type）</label>
             <select name="fuel_type">
+              <?php
+                $current_fuel = gt_normalize_fuel_type($vehicle['fuel_type'] ?? '');
+              ?>
+              <option value="">-- Select --</option>
               <?php foreach (['Diesel','Petrol','Hybrid','Electric','LPG'] as $ft): ?>
-              <option value="<?= $ft ?>" <?= ($vehicle['fuel_type'] === $ft) ? 'selected' : '' ?>><?= $ft ?></option>
+              <option value="<?= $ft ?>" <?= ($current_fuel === $ft) ? 'selected' : '' ?>><?= $ft ?></option>
               <?php endforeach; ?>
             </select>
           </div>
           <div class="form-group">
             <label>ミッション（Transmission）</label>
             <select name="transmission">
+              <option value="">-- Select --</option>
               <?php
                 $current_transmission = gt_normalize_transmission($vehicle['transmission'] ?? '');
                 foreach (['Manual','Automatic','CVT'] as $tr):
@@ -799,7 +816,7 @@ textarea { resize: vertical; min-height: 80px; }
               <option value="<?= $tr ?>" <?= ($current_transmission === $tr) ? 'selected' : '' ?>><?= $tr ?></option>
               <?php endforeach; ?>
             </select>
-            <div class="hint">CSVの AT / MT は保存時に Automatic / Manual へ統一されます。</div>
+            <div class="hint">CSVの AT / MT は保存時に Automatic / Manual へ統一されます。未選択のまま保存しても既存値は維持されます。</div>
           </div>
           <div class="form-group">
             <label>走行距離 km（Mileage）</label>

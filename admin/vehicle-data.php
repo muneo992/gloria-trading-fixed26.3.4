@@ -53,6 +53,80 @@ function gt_normalize_transmission($value) {
     return $raw;
 }
 
+/**
+ * Canonical body types for admin select options.
+ */
+function gt_normalize_body_type($value) {
+    $raw = gt_string_value($value);
+    if ($raw === '') return '';
+
+    $lower = strtolower($raw);
+    $map = [
+        'van' => 'Van',
+        'sedan' => 'Sedan',
+        'hatchback' => 'Hatchback',
+        'hatchback / compact' => 'Hatchback',
+        'hatchback/compact' => 'Hatchback',
+        'compact' => 'Hatchback',
+        'suv' => 'SUV',
+        'pickup' => 'Pickup',
+        'pick-up' => 'Pickup',
+        'wagon' => 'Wagon',
+        'station wagon' => 'Wagon',
+        'minivan' => 'Minivan',
+        'mini van' => 'Minivan',
+        'truck' => 'Truck',
+        'bus' => 'Bus',
+        'other' => 'Other',
+    ];
+    if (isset($map[$lower])) return $map[$lower];
+
+    if (stripos($raw, 'hatch') !== false || stripos($raw, 'compact') !== false) return 'Hatchback';
+    if (stripos($raw, 'station') !== false || stripos($raw, 'wagon') !== false) return 'Wagon';
+    if (stripos($raw, 'minivan') !== false || stripos($raw, 'mini van') !== false) return 'Minivan';
+    if (stripos($raw, 'pick') !== false) return 'Pickup';
+    if (stripos($raw, 'suv') !== false) return 'SUV';
+    if (stripos($raw, 'sedan') !== false) return 'Sedan';
+    if (stripos($raw, 'truck') !== false) return 'Truck';
+    if (stripos($raw, 'bus') !== false) return 'Bus';
+    if (stripos($raw, 'van') !== false) return 'Van';
+
+    return $raw;
+}
+
+/**
+ * Canonical fuel types for admin select options.
+ */
+function gt_normalize_fuel_type($value) {
+    $raw = gt_string_value($value);
+    if ($raw === '') return '';
+
+    $lower = strtolower($raw);
+    if (in_array($lower, ['petrol', 'gasoline', 'gas', '軽油以外', 'ガソリン'], true)
+        || strpos($lower, 'petrol') !== false
+        || strpos($lower, 'gasoline') !== false) {
+        return 'Petrol';
+    }
+    if (in_array($lower, ['diesel', '軽油'], true) || strpos($lower, 'diesel') !== false) {
+        return 'Diesel';
+    }
+    if (strpos($lower, 'hybrid') !== false || strpos($lower, 'e-power') !== false || strpos($lower, 'epower') !== false) {
+        return 'Hybrid';
+    }
+    if (strpos($lower, 'electric') !== false || $lower === 'ev') {
+        return 'Electric';
+    }
+    if (strpos($lower, 'lpg') !== false) {
+        return 'LPG';
+    }
+
+    foreach (['Diesel', 'Petrol', 'Hybrid', 'Electric', 'LPG'] as $known) {
+        if (strcasecmp($raw, $known) === 0) return $known;
+    }
+
+    return $raw;
+}
+
 function gt_gallery_value($v) {
     $images = [];
     if (!empty($v['gallery']) && is_array($v['gallery'])) {
@@ -270,8 +344,8 @@ function normalizeVehicleRecord($v) {
         'make'                => gt_string_value($v['make'] ?? ''),
         'model'               => gt_string_value($v['model'] ?? ''),
         'grade'               => gt_string_value($v['grade'] ?? ''),
-        'body_type'           => gt_string_value($v['body_type'] ?? $v['body'] ?? ''),
-        'fuel_type'           => gt_string_value($v['fuel_type'] ?? $v['fuel'] ?? ''),
+        'body_type'           => gt_normalize_body_type($v['body_type'] ?? $v['body'] ?? ''),
+        'fuel_type'           => gt_normalize_fuel_type($v['fuel_type'] ?? $v['fuel'] ?? ''),
         'transmission'        => gt_normalize_transmission($v['transmission'] ?? ''),
         'mileage_km'          => gt_int_value($v['mileage_km'] ?? $v['mileage'] ?? 0),
         'engine_cc'           => gt_int_value($v['engine_cc'] ?? $v['displacement_cc'] ?? $v['engine_displacement_cc'] ?? 0),
