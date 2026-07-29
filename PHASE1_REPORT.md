@@ -39,6 +39,29 @@
 - 一時テストデータを使用し、同じ時刻名のバックアップが既に存在する場合に既存ファイルを変更せず、`-1`付きのバックアップへ保存前JSONを退避してから本体を保存できることを確認しました。
 - 本番サーバー固有の権限・ファイルシステムを含む保存確認は、本番反映前にテスト環境で別途実施してください。
 
+## テスト環境用ワークフローの安全化
+
+`.github/workflows/deploy-test.yml` を、指定したブランチ・タグ・コミットSHAをさくらのテスト環境へ安全に反映できる手動ワークフローへ変更しました。
+
+- `confirm` が `DEPLOY_TEST` と完全一致しない場合は処理を中止します。
+- `deploy_ref` でブランチ名、タグ名、またはコミットSHAを必須指定し、その値をCheckoutに使用します。
+- 指定したrefの解決後SHAと実際のCheckout HEAD SHAをログへ出力し、不一致の場合は処理を中止します。
+- `SAKURA_TEST_PATH` が `/home/gltr/www/gloria-test` と完全一致しない場合は処理を中止します。
+- `frontend/data/vehicles.json`、ルートの `vehicles.json`、`frontend/data/backup/` を `rsync` から除外します。
+- デプロイ前に、存在する `frontend/data/vehicles.json`、ルートの `vehicles.json`、`admin/vehicle-data.php` を `/home/gltr/www/_backups/gloria-test-before-YYYYMMDD-HHMMSS/` へ退避し、コピー結果が一致しない場合は処理を中止します。
+- SSH接続は `ssh-keyscan` で作成した `known_hosts` と `StrictHostKeyChecking=yes` を使用します。
+- デプロイ後に `admin/vehicle-data.php` のPHP構文、管理画面診断、主要ページのHTTP応答を確認します。
+
+### テスト環境への実行手順
+
+1. GitHub Actionsで `Deploy selected ref to Sakura Test (gloria-test)` を選び、`Run workflow`を開きます。
+2. ワークフローを実行するブランチとして、ワークフローファイルを含む対象ブランチを選びます。
+3. `confirm` に `DEPLOY_TEST` を入力します。
+4. `deploy_ref` に反映対象のブランチ名、タグ名、または完全なコミットSHAを入力します。Phase 1確認時は、レビュー済みの最新コミットSHAを指定します。
+5. 実行ログで `inputs.deploy_ref`、`resolved deploy_ref SHA`、`checked out HEAD SHA` が意図したコミットを示し、バックアップ、PHP構文確認、管理画面診断、主要ページ確認がすべて成功したことを確認します。
+
+テスト環境へ反映する前に、GitHub Secret `SAKURA_TEST_PATH` が `/home/gltr/www/gloria-test` に設定されていることを確認してください。ワークフローは手動実行専用であり、この変更をコミットまたはPull Requestへ追加しても自動デプロイされません。
+
 ## ロールバック方法
 
 1. 管理画面での保存を戻す場合は、`frontend/data/backup/` から対象時刻のバックアップを選び、内容を `frontend/data/vehicles.json` に戻します。必要に応じてルートの `vehicles.json` にも同じ内容を反映します。
