@@ -401,8 +401,36 @@ function saveVehicles($data) {
         return false;
     }
 
-    $backup_path = $backup_dir . '/vehicles-' . date('Ymd-His') . '.json';
-    if (file_put_contents($backup_path, $current_json, LOCK_EX) === false) {
+    $backup_base = $backup_dir . '/vehicles-' . date('Ymd-His');
+    $backup_suffix = 0;
+    do {
+        $backup_path = $backup_base
+            . ($backup_suffix === 0 ? '' : '-' . $backup_suffix)
+            . '.json';
+        $backup_handle = @fopen($backup_path, 'x');
+        $backup_suffix++;
+    } while ($backup_handle === false && file_exists($backup_path));
+
+    if ($backup_handle === false) {
+        return false;
+    }
+
+    $remaining_json = $current_json;
+    $backup_saved = flock($backup_handle, LOCK_EX);
+    while ($backup_saved && $remaining_json !== '') {
+        $written = fwrite($backup_handle, $remaining_json);
+        if ($written === false || $written === 0) {
+            $backup_saved = false;
+            break;
+        }
+        $remaining_json = substr($remaining_json, $written);
+    }
+    $backup_saved = $backup_saved && fflush($backup_handle);
+    flock($backup_handle, LOCK_UN);
+    fclose($backup_handle);
+
+    if (!$backup_saved) {
+        @unlink($backup_path);
         return false;
     }
 
