@@ -391,9 +391,25 @@ function loadVehicles() {
 }
 
 function saveVehicles($data) {
+    $backup_dir = dirname(VEHICLES_JSON) . '/backup';
+    if (!is_dir($backup_dir) && !mkdir($backup_dir, 0775, true) && !is_dir($backup_dir)) {
+        return false;
+    }
+
+    $current_json = file_get_contents(VEHICLES_JSON);
+    if ($current_json === false) {
+        return false;
+    }
+
+    $backup_path = $backup_dir . '/vehicles-' . date('Ymd-His') . '.json';
+    if (file_put_contents($backup_path, $current_json, LOCK_EX) === false) {
+        return false;
+    }
+
     $normalized = normalizeVehicleData($data);
     return file_put_contents(
         VEHICLES_JSON,
-        json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        LOCK_EX
     );
 }
