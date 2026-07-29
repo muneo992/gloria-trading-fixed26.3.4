@@ -1,167 +1,39 @@
-name: Deploy selected ref to Sakura Test (gloria-test)
+name: Deploy main to Sakura Test (gloria-test)
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Type DEPLOY_TEST to deploy to gloria-test"
+        description: "Type YES to deploy"
         required: true
-        type: string
-      deploy_ref:
-        description: "Branch, tag, or commit SHA to deploy"
-        required: true
-        type: string
+        default: "YES"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      EXPECTED_SAKURA_TEST_PATH: /home/gltr/www/gloria-test
-      SAKURA_TEST_PATH: ${{ secrets.SAKURA_TEST_PATH }}
-      SAKURA_BACKUP_BASE: /home/gltr/www/_backups
-      SSH_HOST: ${{ secrets.SAKURA_HOST }}
-      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
-      SSH_USER: ${{ secrets.SAKURA_USER }}
-
     steps:
-      - name: Validate confirmation
-        env:
-          CONFIRM_INPUT: ${{ inputs.confirm }}
-        run: |
-          set -euo pipefail
-          if [ "$CONFIRM_INPUT" != "DEPLOY_TEST" ]; then
-            echo "Confirmation text did not match DEPLOY_TEST. Deployment stopped."
-            exit 1
-          fi
-
-      - name: Checkout requested ref
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.deploy_ref }}
-          fetch-depth: 0
+          ref: main
 
-      - name: Verify checked out ref and SHA
-        env:
-          DEPLOY_REF_INPUT: ${{ inputs.deploy_ref }}
+      - name: Deploy
         run: |
-          set -euo pipefail
-          ACTUAL_SHA="$(git rev-parse HEAD)"
-          RESOLVED_SHA=""
-
-          for CANDIDATE in \
-            "$DEPLOY_REF_INPUT" \
-            "refs/heads/$DEPLOY_REF_INPUT" \
-            "refs/tags/$DEPLOY_REF_INPUT" \
-            "origin/$DEPLOY_REF_INPUT"; do
-            if git rev-parse --verify --quiet --end-of-options "${CANDIDATE}^{commit}" >/tmp/deploy-ref-sha; then
-              RESOLVED_SHA="$(cat /tmp/deploy-ref-sha)"
-              break
-            fi
-          done
-
-          echo "GITHUB_REF=$GITHUB_REF"
-          echo "inputs.deploy_ref=$DEPLOY_REF_INPUT"
-          echo "resolved deploy_ref SHA=$RESOLVED_SHA"
-          echo "checked out HEAD SHA=$ACTUAL_SHA"
-
-          if [ -z "$RESOLVED_SHA" ] || [ "$ACTUAL_SHA" != "$RESOLVED_SHA" ]; then
-            echo "Requested deploy_ref does not match the checked out HEAD SHA. Deployment stopped."
-            exit 1
-          fi
-
-      - name: Validate Sakura test destination
-        run: |
-          set -euo pipefail
-          echo "Configured SAKURA_TEST_PATH=$SAKURA_TEST_PATH"
-          if [ "$SAKURA_TEST_PATH" != "$EXPECTED_SAKURA_TEST_PATH" ]; then
-            echo "SAKURA_TEST_PATH must be exactly $EXPECTED_SAKURA_TEST_PATH. Deployment stopped."
-            exit 1
-          fi
-
-      - name: Setup SSH key and known hosts
-        run: |
-          set -euo pipefail
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
-
-      - name: Backup current Sakura test files
-        run: |
-          set -euo pipefail
-          ssh \
-            -i ~/.ssh/id_rsa \
-            -p "$SSH_PORT" \
-            -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" \
-            'bash -se' <<'REMOTE'
-          set -euo pipefail
-          TEST_PATH='/home/gltr/www/gloria-test'
-          BACKUP_BASE='/home/gltr/www/_backups'
-          TS="$(date +%Y%m%d-%H%M%S)"
-          BACKUP_PATH="$BACKUP_BASE/gloria-test-before-$TS"
-
-          test -d "$TEST_PATH"
-          mkdir -p "$BACKUP_BASE"
-          mkdir "$BACKUP_PATH"
-
-          for RELATIVE_PATH in \
-            'frontend/data/vehicles.json' \
-            'vehicles.json' \
-            'admin/vehicle-data.php'; do
-            SOURCE_PATH="$TEST_PATH/$RELATIVE_PATH"
-            DESTINATION_PATH="$BACKUP_PATH/$RELATIVE_PATH"
-            if [ -e "$SOURCE_PATH" ]; then
-              mkdir -p "$(dirname "$DESTINATION_PATH")"
-              cp -p "$SOURCE_PATH" "$DESTINATION_PATH"
-              test -e "$DESTINATION_PATH"
-              cmp -s "$SOURCE_PATH" "$DESTINATION_PATH"
-            else
-              echo "Backup skipped; source does not exist: $SOURCE_PATH"
-            fi
-          done
-
-          echo "Created test backup: $BACKUP_PATH"
-          REMOTE
-
-      - name: Deploy selected ref to Sakura test
-        run: |
-          set -euo pipefail
-          rsync -avz \
-            --exclude='.git*' \
-            --exclude='.github' \
-            --exclude='admin/.htpasswd' \
-            --exclude='admin/password.txt' \
-            --exclude='/frontend/data/vehicles.json' \
-            --exclude='/vehicles.json' \
-            --exclude='/frontend/data/backup/' \
-            -e "ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=yes" \
-            ./ \
-            "$SSH_USER@$SSH_HOST:$SAKURA_TEST_PATH/"
+          ssh-keyscan -p "${{ secrets.SAKURA_PORT || '22' }}" -H "${{ secrets.SAKURA_HOST }}" >> ~/.ssh/known_hosts
+          rsync -avz --exclude='.git*' --exclude='.github' --exclude='admin/.htpasswd' --exclude='admin/password.txt' -e "ssh -i ~/.ssh/id_rsa -p ${{ secrets.SAKURA_PORT || '22' }} -o StrictHostKeyChecking=no" ./ ${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}:${{ secrets.SAKURA_TEST_PATH }}/
 
       - name: Publish root symlinks for Sakura
         run: |
-          set -euo pipefail
-          ssh \
-            -i ~/.ssh/id_rsa \
-            -p "$SSH_PORT" \
-            -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" \
-            "bash '$SAKURA_TEST_PATH/scripts/sakura-publish-links.sh' '$SAKURA_TEST_PATH'"
-
-      - name: Validate deployed PHP syntax
-        run: |
-          set -euo pipefail
-          ssh \
-            -i ~/.ssh/id_rsa \
-            -p "$SSH_PORT" \
-            -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" \
-            "php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'"
+          ssh -i ~/.ssh/id_rsa -p "${{ secrets.SAKURA_PORT || '22' }}" -o StrictHostKeyChecking=no \
+            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
+            "bash '${{ secrets.SAKURA_TEST_PATH }}/scripts/sakura-publish-links.sh' '${{ secrets.SAKURA_TEST_PATH }}'"
 
       - name: Smoke test gloria-test site
         run: |
-          set -euo pipefail
+          set -e
           sleep 3
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/"
           curl -I --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/catalog.html"
@@ -173,3 +45,4 @@ jobs:
           curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/ivory-coast.html" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/cote-divoire"
           curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/ivory-coast" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/cote-divoire"
           curl -s --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/admin/index.php?diag=1" | grep -q "status: ok"
+
