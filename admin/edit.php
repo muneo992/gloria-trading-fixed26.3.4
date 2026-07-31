@@ -424,6 +424,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $process_site_uploads = in_array($upload_mode, ['site_only', 'both'], true);
     $has_master_csv_upload = !empty($_FILES['site_data_csv']['name']) && (($_FILES['site_data_csv']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE);
 
+    if ($upload_mode === 'site_only') {
+        $saved_quote = gt_quote_spec_data_value($vehicle);
+        $submitted_quote = gt_quote_data_from_post($saved_quote);
+        if ($submitted_quote !== $saved_quote) {
+            $errors[] = '見積項目が変更されています。見積用だけ保存、または両方保存を選択してください。';
+        }
+    }
+
     $submitted_ref = trim($_POST['ref_id'] ?? '');
     $submitted_vehicle = [
         'ref_id'           => $submitted_ref,

@@ -337,7 +337,7 @@ function normalizeVehicleRecord($v) {
         $reference_price = $v['price_usd'] ?? $v['price_low_usd'] ?? $v['price_high_usd'] ?? 0;
     }
 
-    return [
+    $normalized = [
         'ref_id'              => $ref,
         'display_name_en'     => $title,
         'year'                => gt_int_value($v['year'] ?? 0),
@@ -365,6 +365,12 @@ function normalizeVehicleRecord($v) {
         'export_document_data' => gt_export_document_data_value($v),
         'vehicle_certificate_data' => gt_vehicle_certificate_data_value($v),
     ];
+
+    if (array_key_exists('resale_markets', $v)) {
+        $normalized['resale_markets'] = (string)$v['resale_markets'];
+    }
+
+    return $normalized;
 }
 
 function normalizeVehicleData($decoded) {
