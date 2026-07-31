@@ -99,7 +99,11 @@ Phase 1では、管理画面で更新した車両データをデプロイや保�
 
 以下はPhase 1の対象外とし、現在の安全運用を優先して変更していない。
 
-- 見積書、Commercial Invoice、Packing Listなど帳票機能の整理。
+- QuotationとProforma Invoiceの役割・名称・ボタン表示の整理。
+- 管理画面内の帳票名称と実際に生成される帳票の名称の統一。
+- `quote_memo`の利用目的の明確化。
+- 和文Proforma Invoiceの備考だけでなく、英文QuotationのRemarksなどへの反映要否の検討。
+- Commercial Invoice、Packing Listなどを含む帳票機能全体の整理。
 - 管理画面のUI、項目配置、保存モード表示の整理。
 - バックアップ一覧、比較、復元を管理画面から行う機能。
 - 全件再構築方式から、対象車両だけを更新する方式への見直し。
