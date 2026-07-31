@@ -391,9 +391,53 @@ function loadVehicles() {
 }
 
 function saveVehicles($data) {
+    $backup_dir = dirname(VEHICLES_JSON) . '/backup';
+    if (!is_dir($backup_dir) && !mkdir($backup_dir, 0775, true) && !is_dir($backup_dir)) {
+        return false;
+    }
+
+    $current_json = file_get_contents(VEHICLES_JSON);
+    if ($current_json === false) {
+        return false;
+    }
+
+    $backup_base = $backup_dir . '/vehicles-' . date('Ymd-His');
+    $backup_suffix = 0;
+    do {
+        $backup_path = $backup_base
+            . ($backup_suffix === 0 ? '' : '-' . $backup_suffix)
+            . '.json';
+        $backup_handle = @fopen($backup_path, 'x');
+        $backup_suffix++;
+    } while ($backup_handle === false && file_exists($backup_path));
+
+    if ($backup_handle === false) {
+        return false;
+    }
+
+    $remaining_json = $current_json;
+    $backup_saved = flock($backup_handle, LOCK_EX);
+    while ($backup_saved && $remaining_json !== '') {
+        $written = fwrite($backup_handle, $remaining_json);
+        if ($written === false || $written === 0) {
+            $backup_saved = false;
+            break;
+        }
+        $remaining_json = substr($remaining_json, $written);
+    }
+    $backup_saved = $backup_saved && fflush($backup_handle);
+    flock($backup_handle, LOCK_UN);
+    fclose($backup_handle);
+
+    if (!$backup_saved) {
+        @unlink($backup_path);
+        return false;
+    }
+
     $normalized = normalizeVehicleData($data);
     return file_put_contents(
         VEHICLES_JSON,
-        json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        LOCK_EX
     );
 }

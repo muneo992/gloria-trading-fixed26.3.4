@@ -61,11 +61,6 @@ for page in "${pages[@]}"; do
   fi
 done
 
-if [[ -f "frontend/data/vehicles.json" ]]; then
-  cp -f "frontend/data/vehicles.json" "vehicles.json"
-  echo "synced vehicles.json"
-fi
-
 for root_file in sitemap.xml robots.txt; do
   if [[ -f "$root_file" ]]; then
     echo "present at web root: $root_file"
