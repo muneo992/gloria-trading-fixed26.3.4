@@ -96,7 +96,7 @@ $today = date('Y-m-d');
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= $vehicle ? h($vehicle['ref_id']) . ' 見積書プレビュー' : '見積書プレビュー' ?> - Gloria Trading Admin</title>
+<title><?= $vehicle ? h($vehicle['ref_id']) . ' 社内確認（原価・利益）' : '社内確認（原価・利益）' ?> - Gloria Trading Admin</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #eef2f6; color: #222; line-height: 1.6; }
@@ -167,13 +167,16 @@ td.money { text-align: right; font-weight: 700; font-variant-numeric: tabular-nu
 
 <div class="container">
   <div class="toolbar">
-    <h1>見積書プレビュー</h1>
+    <h1>社内確認（原価・利益）</h1>
     <div>
       <a class="btn btn-secondary" href="index.php">車両一覧へ戻る</a>
       <?php if ($vehicle): ?>
       <a class="btn btn-primary" href="edit.php?ref=<?= urlencode($vehicle['ref_id']) ?>">車両を編集</a>
-      <a class="btn btn-success" href="quote-pdf.php?ref=<?= urlencode($vehicle['ref_id']) ?>">Proforma PDFダウンロード</a>
-      <button type="button" class="btn btn-print" onclick="window.print()">印刷</button>
+      <a class="btn btn-success" href="quote-pdf.php?type=quotation&ref=<?= urlencode($vehicle['ref_id']) ?>" title="価格提示用・銀行情報なし">Quotation PDF</a>
+      <a class="btn btn-success" href="quote-pdf.php?type=proforma&ref=<?= urlencode($vehicle['ref_id']) ?>" title="支払案内用・銀行情報あり">Proforma Invoice PDF</a>
+      <a class="btn btn-success" href="quote-pdf.php?type=commercial_invoice&ref=<?= urlencode($vehicle['ref_id']) ?>" title="輸出用インボイス">Commercial Invoice PDF</a>
+      <a class="btn btn-success" href="quote-pdf.php?type=packing_list&ref=<?= urlencode($vehicle['ref_id']) ?>" title="梱包明細・金額表示なし">Packing List PDF</a>
+      <button type="button" class="btn btn-print" onclick="window.print()">社内確認用に印刷</button>
       <?php endif; ?>
     </div>
   </div>
@@ -188,7 +191,7 @@ td.money { text-align: right; font-weight: 700; font-variant-numeric: tabular-nu
     <article class="quote-sheet">
       <header class="quote-header">
         <div>
-          <div class="quote-title">PROFORMA INVOICE</div>
+          <div class="quote-title">社内確認（原価・利益）</div>
           <p>Invoice No: <?= h($quote['invoice_no'] ?? '自動採番') ?> / Date: <?= h($quote['invoice_date'] ?? $today) ?></p>
         </div>
         <div class="company">
@@ -290,7 +293,7 @@ td.money { text-align: right; font-weight: 700; font-variant-numeric: tabular-nu
 
       <div class="footer-note">
         <p><?= h($vehicle['disclaimer_short'] ?? '') ?></p>
-        <p>この画面は管理者確認用のプレビューです。顧客送付用のPROFORMA INVOICEは上部の「Proforma PDFダウンロード」から出力できます。</p>
+        <p>この画面は原価・利益を含む社内確認用です。顧客送付用の帳票は上部の各PDFボタンから出力できます。</p>
       </div>
     </article>
   <?php endif; ?>
