@@ -244,7 +244,7 @@ tr:hover td { background: #fafbff; }
     </div>
     <?php else: ?>
     <form id="bulkPdfForm" action="quote-pdf.php" method="get" target="_blank" class="bulk-toolbar">
-      <button type="submit" class="btn btn-success">選択車両のProforma PDF</button>
+      <button type="submit" class="btn btn-success" title="支払案内用・銀行情報あり">選択車両のProforma Invoice PDF</button>
       <span class="hint">複数車両を1枚のPROFORMA INVOICE明細として出力できます。</span>
     </form>
     <div style="overflow-x:auto;">
@@ -280,8 +280,8 @@ tr:hover td { background: #fafbff; }
           <td>
             <div class="actions">
               <a href="edit.php?ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-edit">編集</a>
-              <a href="quote-preview.php?ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-quote">見積プレビュー</a>
-              <a href="quote-pdf.php?ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-success">PDF</a>
+              <a href="quote-preview.php?ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-quote">社内確認（原価・利益）</a>
+              <a href="quote-pdf.php?type=proforma&ref=<?= urlencode($v['ref_id'] ?? '') ?>" class="btn btn-success" title="支払案内用・銀行情報あり">Proforma Invoice PDF</a>
               <form method="post" onsubmit="return confirm('「<?= htmlspecialchars($v['display_name_en'] ?? '') ?>」を削除しますか？');" style="display:inline;">
                 <input type="hidden" name="action" value="delete">
                 <input type="hidden" name="ref_id" value="<?= htmlspecialchars($v['ref_id'] ?? '') ?>">

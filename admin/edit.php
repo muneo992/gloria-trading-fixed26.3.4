@@ -724,10 +724,11 @@ textarea { resize: vertical; min-height: 80px; }
     <h1><?= $is_edit ? '車両データ編集' : '新規車両を追加' ?></h1>
     <?php if ($is_edit): ?>
     <span style="background:#e8f0fe;color:#1a56db;padding:0.3rem 0.8rem;border-radius:4px;font-size:0.85rem;font-weight:600;"><?= htmlspecialchars($ref_id) ?></span>
-    <a href="quote-preview.php?ref=<?= urlencode($ref_id) ?>" class="btn btn-preview">見積書プレビュー</a>
-    <a href="quote-pdf.php?type=quotation&ref=<?= urlencode($ref_id) ?>" class="btn btn-preview" target="_blank">QUOTATION PDF</a>
-    <a href="quote-pdf.php?type=commercial_invoice&ref=<?= urlencode($ref_id) ?>" class="btn btn-preview" target="_blank">Commercial Invoice</a>
-    <a href="quote-pdf.php?type=packing_list&ref=<?= urlencode($ref_id) ?>" class="btn btn-preview" target="_blank">Packing List</a>
+    <a href="quote-preview.php?ref=<?= urlencode($ref_id) ?>" class="btn btn-preview">社内確認（原価・利益）</a>
+    <a href="quote-pdf.php?type=quotation&ref=<?= urlencode($ref_id) ?>" class="btn btn-preview" target="_blank" title="価格提示用・銀行情報なし">Quotation PDF</a>
+    <a href="quote-pdf.php?type=proforma&ref=<?= urlencode($ref_id) ?>" class="btn btn-preview" target="_blank" title="支払案内用・銀行情報あり">Proforma Invoice PDF</a>
+    <a href="quote-pdf.php?type=commercial_invoice&ref=<?= urlencode($ref_id) ?>" class="btn btn-preview" target="_blank" title="輸出用インボイス">Commercial Invoice PDF</a>
+    <a href="quote-pdf.php?type=packing_list&ref=<?= urlencode($ref_id) ?>" class="btn btn-preview" target="_blank" title="梱包明細・金額表示なし">Packing List PDF</a>
     <?php endif; ?>
   </div>
 
