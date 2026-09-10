@@ -134,7 +134,8 @@ jobs:
             --exclude='admin/password.txt' \
             --exclude='/frontend/data/vehicles.json' \
             --exclude='/vehicles.json' \
-            --exclude='/frontend/data/backup/' \
+            --exclude='/frontend/data/backup/'
+            --exclude='/east-africa/' \
             -e "ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=yes" \
             ./ \
             "$SSH_USER@$SSH_HOST:$SAKURA_TEST_PATH/"
