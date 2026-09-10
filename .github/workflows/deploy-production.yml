@@ -71,7 +71,8 @@ jobs:
             --exclude='.github/' \
             --exclude='.DS_Store' \
             --exclude='Thumbs.db' \
-            --exclude='node_modules/' \
+            --exclude='node_modules/'
+            --exclude='/east-africa/' \
             --exclude='netlify.toml' \
             --exclude='*.zip' \
             --exclude='admin/password.txt' \
