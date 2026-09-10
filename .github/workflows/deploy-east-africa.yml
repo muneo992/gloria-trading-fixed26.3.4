@@ -1,0 +1,112 @@
+name: Deploy East Africa to Sakura
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY_EA to deploy East Africa only'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sakura-gloria-east-africa-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-ea:
+    runs-on: ubuntu-latest
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/east-africa-site-v1') && inputs.confirm == 'DEPLOY_EA' }}
+    env:
+      EA_PATH: /home/gltr/www/gloria-ea
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+    steps:
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Validate source and destination
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = DEPLOY_EA
+          case "$GITHUB_REF" in
+            refs/heads/main|refs/heads/east-africa-site-v1) ;;
+            *) exit 1 ;;
+          esac
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$EA_PATH" = /home/gltr/www/gloria-ea
+          test -f east-africa/index.html
+          test -f east-africa/data/vehicles.json
+          test -z "$(find east-africa -type l -print -quit)"
+          node --check east-africa/js/ea.js
+          python3 scripts/check-east-africa.py
+
+      - name: Install rsync
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/ea_deploy_key
+          chmod 600 ~/.ssh/ea_deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Validate remote directory and back up East Africa
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/ea_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          EA_PATH='/home/gltr/www/gloria-ea'
+          test -d "$EA_PATH"
+          test ! -L "$EA_PATH"
+          test "$(cd "$EA_PATH" && pwd -P)" = "$EA_PATH"
+          test -z "$(find "$EA_PATH" -type l -print -quit)"
+          BACKUP_BASE='/home/gltr/ea-backups'
+          mkdir -p "$BACKUP_BASE"
+          chmod 700 "$BACKUP_BASE"
+          BACKUP_FILE="$BACKUP_BASE/gloria-ea-$(date -u +%Y%m%d-%H%M%S)-$$.tar.gz"
+          umask 077
+          tar -C "$EA_PATH" -czf "$BACKUP_FILE" .
+          test -s "$BACKUP_FILE"
+          tar -tzf "$BACKUP_FILE" >/dev/null
+          echo "East Africa backup: $BACKUP_FILE"
+          REMOTE
+
+      - name: Deploy East Africa files only
+        run: |
+          set -euo pipefail
+          test "$EA_PATH" = /home/gltr/www/gloria-ea
+          rsync -az --checksum --delay-updates \
+            -e "ssh -i ~/.ssh/ea_deploy_key -p $SSH_PORT -o StrictHostKeyChecking=yes" \
+            east-africa/ "$SSH_USER@$SSH_HOST:$EA_PATH/"
+          CHANGES="$(rsync -aznci \
+            -e "ssh -i ~/.ssh/ea_deploy_key -p $SSH_PORT -o StrictHostKeyChecking=yes" \
+            east-africa/ "$SSH_USER@$SSH_HOST:$EA_PATH/")"
+          test -z "$CHANGES"
+
+      - name: Verify East Africa public pages
+        run: |
+          set -euo pipefail
+          for PAGE in '' vehicles.html how-to-buy.html about.html contact.html request.html vehicle-detail.html css/base.css css/ea.css js/ea.js images/gloria-trading-logo.jpg data/vehicles.json robots.txt sitemap.xml; do
+            curl --fail --silent --show-error --max-time 30 "https://ea.gloriatrading.com/$PAGE" -o /dev/null
+          done
+          curl --fail --silent --show-error --max-time 30 https://ea.gloriatrading.com/ -o /tmp/ea-home.html
+          grep -q 'Japanese Used Vehicles' /tmp/ea-home.html
+          grep -q 'https://ea.gloriatrading.com/' /tmp/ea-home.html
+
+      - name: Remove deployment key
+        if: always()
+        run: rm -f ~/.ssh/ea_deploy_key

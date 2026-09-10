@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ea.gloriatrading.com/sitemap.xml
