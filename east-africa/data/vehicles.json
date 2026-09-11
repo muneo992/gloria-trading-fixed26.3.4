@@ -1,1 +1,37 @@
-{"vehicles": []}
+{
+  "vehicles": [
+    {
+      "ref_id": "EA-PBX-001",
+      "make": "Toyota",
+      "model": "Probox",
+      "year": 2025,
+      "fuel_type": "Hybrid",
+      "estimated_cif_mombasa_usd": 15200,
+      "reference_price_usd": null,
+      "price_as_of": "2026-08-23",
+      "gallery": []
+    },
+    {
+      "ref_id": "EA-PBX-002",
+      "make": "Toyota",
+      "model": "Probox",
+      "year": 2024,
+      "fuel_type": "Hybrid",
+      "estimated_cif_mombasa_usd": 13500,
+      "reference_price_usd": null,
+      "price_as_of": "2026-08-23",
+      "gallery": []
+    },
+    {
+      "ref_id": "EA-PBX-003",
+      "make": "Toyota",
+      "model": "Probox",
+      "year": 2024,
+      "fuel_type": "Petrol",
+      "estimated_cif_mombasa_usd": 12500,
+      "reference_price_usd": null,
+      "price_as_of": "2026-08-23",
+      "gallery": []
+    }
+  ]
+}
