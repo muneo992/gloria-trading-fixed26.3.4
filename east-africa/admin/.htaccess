@@ -1,0 +1,6 @@
+Options -Indexes
+DirectoryIndex index.php
+
+<FilesMatch "^(?:bootstrap\.php)$">
+  Require all denied
+</FilesMatch>

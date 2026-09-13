@@ -1,2 +1,5 @@
 Options -Indexes
 DirectoryIndex index.html
+
+RewriteEngine On
+RewriteRule ^data/vehicles\.json$ data/vehicle-feed.php [L]
