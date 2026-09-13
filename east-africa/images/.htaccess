@@ -1,0 +1,9 @@
+Options -Indexes -ExecCGI
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(EA-[A-Z0-9]+(?:-[A-Z0-9]+)*)/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:jpe?g|png|webp))$ /data/vehicle-image.php?ref=$1&file=$2 [END,QSA,NC]
+
+<FilesMatch "\.(?:php[0-9]?|phtml|phar|cgi|pl|py|sh|shtml)$">
+  Require all denied
+</FilesMatch>
