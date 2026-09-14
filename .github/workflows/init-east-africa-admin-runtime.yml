@@ -108,7 +108,9 @@ jobs:
       - name: Create and validate East Africa Admin directories
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
           set -euo pipefail
 
           EA_ADMIN_ROOT='/home/gltr/ea-admin-data'
@@ -149,23 +151,31 @@ jobs:
           set -euo pipefail
           test -n "$EA_ADMIN_PASSWORD"
           test "${#EA_ADMIN_PASSWORD}" -ge 12
-          scp -i ~/.ssh/ea_admin_init_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
+          scp -i ~/.ssh/ea_admin_init_key -P "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
             scripts/create-east-africa-admin-password-hash.php \
             "$SSH_USER@$SSH_HOST:$REMOTE_HELPER"
-          ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
           set -euo pipefail
           test -f /home/gltr/ea-admin-data/create-admin-password-hash.php
           chmod 700 /home/gltr/ea-admin-data/create-admin-password-hash.php
           REMOTE
+          # Sakura login shell is csh. Keep PHP off the remote command line and
+          # force bash so history expansion cannot interpret the helper.
           printf '%s' "$EA_ADMIN_PASSWORD" | env -u EA_ADMIN_PASSWORD \
-            ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" 'php /home/gltr/ea-admin-data/create-admin-password-hash.php'
+            ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            'bash --noprofile --norc -c "exec php /home/gltr/ea-admin-data/create-admin-password-hash.php"'
 
       - name: Verify final East Africa Admin runtime state
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
           set -euo pipefail
 
           EA_ADMIN_ROOT='/home/gltr/ea-admin-data'
@@ -209,7 +219,9 @@ jobs:
         run: |
           set -euo pipefail
           if test -f ~/.ssh/ea_admin_init_key && test -n "$SSH_HOST" && test -n "$SSH_USER"; then
-            ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
-              "$SSH_USER@$SSH_HOST" 'rm -f /home/gltr/ea-admin-data/create-admin-password-hash.php' || true
+            ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+              -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$SSH_USER@$SSH_HOST" \
+              'bash --noprofile --norc -c "rm -f /home/gltr/ea-admin-data/create-admin-password-hash.php"' || true
           fi
           rm -f ~/.ssh/ea_admin_init_key
