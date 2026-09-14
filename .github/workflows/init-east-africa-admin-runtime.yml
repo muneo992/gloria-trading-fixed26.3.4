@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type INIT_EA_ADMIN to initialize East Africa Admin runtime only'
+        description: 'Type INIT_EA_ADMIN to initialize, or RESET_EA_ADMIN_PASSWORD to replace only the password hash'
         required: true
         type: string
   pull_request:
@@ -211,6 +211,140 @@ jobs:
               exit(1);
           }
           fwrite(STDOUT, "Stored EA admin password hash passed password_get_info() validation." . PHP_EOL);
+          PHP
+          REMOTE
+
+      - name: Remove remote helper and SSH key
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          if test -f ~/.ssh/ea_admin_init_key && test -n "$SSH_HOST" && test -n "$SSH_USER"; then
+            ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+              -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$SSH_USER@$SSH_HOST" \
+              'bash --noprofile --norc -c "rm -f /home/gltr/ea-admin-data/create-admin-password-hash.php"' || true
+          fi
+          rm -f ~/.ssh/ea_admin_init_key
+
+  reset-ea-admin-password:
+    needs: validate-init-files
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm == 'RESET_EA_ADMIN_PASSWORD' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: sakura-gloria-east-africa-admin-init
+      cancel-in-progress: false
+    env:
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+      REMOTE_HELPER: /home/gltr/ea-admin-data/create-admin-password-hash.php
+
+    steps:
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Validate confirmation and required secrets
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+          EA_ADMIN_PASSWORD: ${{ secrets.EA_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = RESET_EA_ADMIN_PASSWORD
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$SSH_HOST"
+          test -n "$SSH_PORT"
+          test -n "$SSH_USER"
+          test -n "$DEPLOY_KEY"
+          test -n "$EA_ADMIN_PASSWORD"
+          test "${#EA_ADMIN_PASSWORD}" -ge 12
+          test -f scripts/create-east-africa-admin-password-hash.php
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/ea_admin_init_key
+          chmod 600 ~/.ssh/ea_admin_init_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Remove only the existing password hash
+        run: |
+          set -euo pipefail
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+
+          EA_ADMIN_ROOT='/home/gltr/ea-admin-data'
+          HASH_FILE="$EA_ADMIN_ROOT/admin-password.hash"
+
+          test -d "$EA_ADMIN_ROOT"
+          test ! -L "$EA_ADMIN_ROOT"
+          test -w "$EA_ADMIN_ROOT"
+          test -r '/home/gltr/www/gloria-ea/data/vehicles.json'
+          test -r '/home/gltr/www/gloria-ea/images/EA-PBX-001/EA-PBX-001-01.jpg'
+          if test -L "$HASH_FILE"; then
+            echo "Refusing to replace a symbolic link: $HASH_FILE" >&2
+            exit 1
+          fi
+          rm -f "$HASH_FILE"
+          test ! -e "$HASH_FILE"
+          REMOTE
+
+      - name: Create and verify the replacement admin password hash
+        env:
+          EA_ADMIN_PASSWORD: ${{ secrets.EA_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$EA_ADMIN_PASSWORD"
+          test "${#EA_ADMIN_PASSWORD}" -ge 12
+          scp -i ~/.ssh/ea_admin_init_key -P "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            scripts/create-east-africa-admin-password-hash.php \
+            "$SSH_USER@$SSH_HOST:$REMOTE_HELPER"
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+          test -f /home/gltr/ea-admin-data/create-admin-password-hash.php
+          chmod 700 /home/gltr/ea-admin-data/create-admin-password-hash.php
+          REMOTE
+          printf '%s' "$EA_ADMIN_PASSWORD" | env -u EA_ADMIN_PASSWORD \
+            ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            'bash --noprofile --norc -c "exec php /home/gltr/ea-admin-data/create-admin-password-hash.php"'
+
+      - name: Verify the replacement hash and leave vehicle data untouched
+        run: |
+          set -euo pipefail
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+
+          HASH_FILE='/home/gltr/ea-admin-data/admin-password.hash'
+          test -f "$HASH_FILE"
+          test ! -L "$HASH_FILE"
+          php -r 'exit(((fileperms($argv[1]) & 0777) === 0600) ? 0 : 1);' "$HASH_FILE"
+          php <<'PHP'
+          <?php
+          $path = "/home/gltr/ea-admin-data/admin-password.hash";
+          $hash = file_get_contents($path);
+          $info = is_string($hash) ? password_get_info($hash) : [];
+          if (!is_string($hash) || $hash === "" || ($info["algoName"] ?? "unknown") === "unknown") {
+              fwrite(STDERR, "Replacement admin password hash validation failed." . PHP_EOL);
+              exit(1);
+          }
+          fwrite(STDOUT, "Replacement EA admin password hash passed password_get_info() validation." . PHP_EOL);
           PHP
           REMOTE
 
