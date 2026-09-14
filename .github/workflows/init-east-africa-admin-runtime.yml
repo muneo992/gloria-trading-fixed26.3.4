@@ -82,7 +82,7 @@ jobs:
             mkdir -p "$DIRECTORY"
             chmod 700 "$DIRECTORY"
             test -d "$DIRECTORY"
-            test "$(stat -c '%a' "$DIRECTORY")" = 700
+            test "$(find "$DIRECTORY" -prune -printf '%m')" = 700
           done
 
           test -r "$PUBLIC_VEHICLES"
@@ -191,7 +191,7 @@ jobs:
           do
             test -d "$DIRECTORY"
             test ! -L "$DIRECTORY"
-            test "$(stat -c '%a' "$DIRECTORY")" = 700
+            test "$(find "$DIRECTORY" -prune -printf '%m')" = 700
           done
 
           test -r '/home/gltr/www/gloria-ea/data/vehicles.json'
@@ -201,7 +201,7 @@ jobs:
           test ! -L "$EA_ADMIN_ROOT/vehicles.json"
           test -f "$HASH_FILE"
           test ! -L "$HASH_FILE"
-          test "$(stat -c '%a' "$HASH_FILE")" = 600
+          test "$(find "$HASH_FILE" -prune -printf '%m')" = 600
 
           php <<'PHP'
           <?php
