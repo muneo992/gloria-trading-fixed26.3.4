@@ -1,0 +1,221 @@
+name: Initialize East Africa Admin Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type INIT_EA_ADMIN to initialize East Africa Admin runtime only'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sakura-gloria-east-africa-admin-init
+  cancel-in-progress: false
+
+jobs:
+  initialize-ea-admin-runtime:
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/east-africa-admin-server-init') && inputs.confirm == 'INIT_EA_ADMIN' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+
+    steps:
+      - name: Validate confirmation and required secrets
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+          EA_ADMIN_PASSWORD: ${{ secrets.EA_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = INIT_EA_ADMIN
+          case "$GITHUB_REF" in
+            refs/heads/main|refs/heads/east-africa-admin-server-init) ;;
+            *) exit 1 ;;
+          esac
+          test -n "$SSH_HOST"
+          test -n "$SSH_PORT"
+          test -n "$SSH_USER"
+          test -n "$DEPLOY_KEY"
+          test -n "$EA_ADMIN_PASSWORD"
+          test "${#EA_ADMIN_PASSWORD}" -ge 12
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/ea_admin_init_key
+          chmod 600 ~/.ssh/ea_admin_init_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Create and validate East Africa Admin directories
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+
+          EA_ADMIN_ROOT='/home/gltr/ea-admin-data'
+          PUBLIC_VEHICLES='/home/gltr/www/gloria-ea/data/vehicles.json'
+          PUBLIC_IMAGE='/home/gltr/www/gloria-ea/images/EA-PBX-001/EA-PBX-001-01.jpg'
+          RUNTIME_VEHICLES="$EA_ADMIN_ROOT/vehicles.json"
+          HASH_FILE="$EA_ADMIN_ROOT/admin-password.hash"
+
+          for DIRECTORY in \
+            "$EA_ADMIN_ROOT" \
+            "$EA_ADMIN_ROOT/backups" \
+            "$EA_ADMIN_ROOT/login-attempts" \
+            "$EA_ADMIN_ROOT/images"
+          do
+            if test -L "$DIRECTORY"; then
+              echo "Refusing to use a symbolic link: $DIRECTORY" >&2
+              exit 1
+            fi
+            mkdir -p -- "$DIRECTORY"
+            chmod 700 -- "$DIRECTORY"
+            test -d "$DIRECTORY"
+            test "$(stat -c '%a' "$DIRECTORY")" = 700
+          done
+
+          test -r "$PUBLIC_VEHICLES"
+          test -w "$EA_ADMIN_ROOT"
+          test -r "$PUBLIC_IMAGE"
+          test ! -e "$RUNTIME_VEHICLES"
+          test ! -L "$RUNTIME_VEHICLES"
+          test ! -e "$HASH_FILE"
+          test ! -L "$HASH_FILE"
+          REMOTE
+
+      - name: Create and verify the admin password hash
+        env:
+          EA_ADMIN_PASSWORD: ${{ secrets.EA_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$EA_ADMIN_PASSWORD"
+          test "${#EA_ADMIN_PASSWORD}" -ge 12
+
+          REMOTE_PHP="$(cat <<'PHP'
+          $path = "/home/gltr/ea-admin-data/admin-password.hash";
+          $password = stream_get_contents(STDIN);
+
+          function fail_with_cleanup($message, $temporaryPath = null) {
+              if (is_string($temporaryPath) && $temporaryPath !== "") {
+                  @unlink($temporaryPath);
+              }
+              fwrite(STDERR, $message . PHP_EOL);
+              exit(1);
+          }
+
+          if (!is_string($password) || $password === "") {
+              fail_with_cleanup("EA admin password input is missing.");
+          }
+          if (file_exists($path) || is_link($path)) {
+              fail_with_cleanup("Refusing to overwrite the existing admin password hash.");
+          }
+
+          $hash = password_hash($password, PASSWORD_DEFAULT);
+          if (!is_string($hash) || $hash === "") {
+              fail_with_cleanup("Failed to create the admin password hash.");
+          }
+
+          $createdInfo = password_get_info($hash);
+          if (($createdInfo["algoName"] ?? "unknown") === "unknown") {
+              fail_with_cleanup("The created password hash was not recognized.");
+          }
+
+          umask(0077);
+          $temporaryPath = $path . ".tmp." . getmypid();
+          $written = file_put_contents($temporaryPath, $hash, LOCK_EX);
+          if ($written !== strlen($hash)) {
+              fail_with_cleanup("Failed to write the admin password hash.", $temporaryPath);
+          }
+          if (!chmod($temporaryPath, 0600)) {
+              fail_with_cleanup("Failed to set the admin password hash mode.", $temporaryPath);
+          }
+          if (!link($temporaryPath, $path)) {
+              fail_with_cleanup("Failed to install the admin password hash without overwriting.", $temporaryPath);
+          }
+          if (!unlink($temporaryPath)) {
+              @unlink($path);
+              fail_with_cleanup("Failed to remove the temporary hash file.");
+          }
+
+          clearstatcache(true, $path);
+          $storedHash = file_get_contents($path);
+          $storedInfo = is_string($storedHash) ? password_get_info($storedHash) : [];
+          $mode = fileperms($path);
+          if (!is_string($storedHash) || $storedHash !== $hash) {
+              fail_with_cleanup("The stored admin password hash does not match the created hash.");
+          }
+          if (($storedInfo["algoName"] ?? "unknown") === "unknown") {
+              fail_with_cleanup("The stored admin password hash was not recognized.");
+          }
+          if (!is_int($mode) || (($mode & 0777) !== 0600)) {
+              fail_with_cleanup("The stored admin password hash mode is not 600.");
+          }
+          if (!password_verify($password, $storedHash)) {
+              fail_with_cleanup("The stored admin password hash failed verification.");
+          }
+
+          $password = "";
+          unset($password);
+          fwrite(STDOUT, "EA admin password hash created and verified with password_get_info()." . PHP_EOL);
+          PHP
+          )"
+
+          printf '%s' "$EA_ADMIN_PASSWORD" |
+            env -u EA_ADMIN_PASSWORD ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "php -r '$REMOTE_PHP'"
+
+      - name: Verify final East Africa Admin runtime state
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+
+          EA_ADMIN_ROOT='/home/gltr/ea-admin-data'
+          HASH_FILE="$EA_ADMIN_ROOT/admin-password.hash"
+
+          for DIRECTORY in \
+            "$EA_ADMIN_ROOT" \
+            "$EA_ADMIN_ROOT/backups" \
+            "$EA_ADMIN_ROOT/login-attempts" \
+            "$EA_ADMIN_ROOT/images"
+          do
+            test -d "$DIRECTORY"
+            test ! -L "$DIRECTORY"
+            test "$(stat -c '%a' "$DIRECTORY")" = 700
+          done
+
+          test -r '/home/gltr/www/gloria-ea/data/vehicles.json'
+          test -w "$EA_ADMIN_ROOT"
+          test -r '/home/gltr/www/gloria-ea/images/EA-PBX-001/EA-PBX-001-01.jpg'
+          test ! -e "$EA_ADMIN_ROOT/vehicles.json"
+          test ! -L "$EA_ADMIN_ROOT/vehicles.json"
+          test -f "$HASH_FILE"
+          test ! -L "$HASH_FILE"
+          test "$(stat -c '%a' "$HASH_FILE")" = 600
+
+          php <<'PHP'
+          <?php
+          $path = "/home/gltr/ea-admin-data/admin-password.hash";
+          $hash = file_get_contents($path);
+          $info = is_string($hash) ? password_get_info($hash) : [];
+          if (!is_string($hash) || $hash === "" || ($info["algoName"] ?? "unknown") === "unknown") {
+              fwrite(STDERR, "Stored admin password hash validation failed." . PHP_EOL);
+              exit(1);
+          }
+          fwrite(STDOUT, "Stored EA admin password hash passed password_get_info() validation." . PHP_EOL);
+          PHP
+          REMOTE
+
+      - name: Remove SSH key from runner
+        if: ${{ always() }}
+        run: rm -f ~/.ssh/ea_admin_init_key
