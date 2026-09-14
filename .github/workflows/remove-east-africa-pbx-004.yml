@@ -1,0 +1,128 @@
+name: Remove East Africa EA-PBX-004
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type REMOVE_EA_PBX_004 to remove only the EA-PBX-004 test listing'
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/remove-east-africa-pbx-004.yml'
+      - 'scripts/remove-east-africa-pbx-004.php'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-remove-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PHP CLI
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli
+
+      - name: Lint the removal helper
+        run: |
+          set -euo pipefail
+          php -l scripts/remove-east-africa-pbx-004.php
+          grep -q "EA-PBX-004" scripts/remove-east-africa-pbx-004.php
+          grep -q "EA-PBX-001/EA-PBX-001-%02d.jpg" scripts/remove-east-africa-pbx-004.php
+
+  remove-ea-pbx-004:
+    needs: validate-remove-files
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm == 'REMOVE_EA_PBX_004' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: sakura-gloria-east-africa-admin-init
+      cancel-in-progress: false
+    env:
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+      REMOTE_HELPER: /home/gltr/ea-admin-data/remove-east-africa-pbx-004.php
+
+    steps:
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Validate confirmation and required secrets
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = REMOVE_EA_PBX_004
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$SSH_HOST"
+          test -n "$SSH_PORT"
+          test -n "$SSH_USER"
+          test -n "$DEPLOY_KEY"
+          test -f scripts/remove-east-africa-pbx-004.php
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/ea_admin_init_key
+          chmod 600 ~/.ssh/ea_admin_init_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Copy and run the EA-PBX-004 removal helper
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/ea_admin_init_key -P "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            scripts/remove-east-africa-pbx-004.php \
+            "$SSH_USER@$SSH_HOST:$REMOTE_HELPER"
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+          test -f /home/gltr/ea-admin-data/remove-east-africa-pbx-004.php
+          chmod 700 /home/gltr/ea-admin-data/remove-east-africa-pbx-004.php
+          REMOTE
+          ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            'bash --noprofile --norc -c "exec php /home/gltr/ea-admin-data/remove-east-africa-pbx-004.php"'
+
+      - name: Verify public feed no longer lists EA-PBX-004
+        run: |
+          set -euo pipefail
+          FEED="$(curl --fail --silent --show-error --max-time 30 https://ea.gloriatrading.com/data/vehicles.json)"
+          printf '%s' "$FEED" | grep -q 'EA-PBX-001'
+          printf '%s' "$FEED" | grep -q 'EA-PBX-002'
+          printf '%s' "$FEED" | grep -q 'EA-PBX-003'
+          if printf '%s' "$FEED" | grep -q 'EA-PBX-004'; then
+            echo "EA-PBX-004 is still present in the public feed." >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 30 -o /dev/null \
+            https://ea.gloriatrading.com/images/EA-PBX-001/EA-PBX-001-01.jpg
+
+      - name: Remove remote helper and SSH key
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          if test -f ~/.ssh/ea_admin_init_key && test -n "$SSH_HOST" && test -n "$SSH_USER"; then
+            ssh -T -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" \
+              -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$SSH_USER@$SSH_HOST" \
+              'bash --noprofile --norc -c "rm -f /home/gltr/ea-admin-data/remove-east-africa-pbx-004.php"' || true
+          fi
+          rm -f ~/.ssh/ea_admin_init_key
