@@ -7,25 +7,75 @@ on:
         description: 'Type INIT_EA_ADMIN to initialize East Africa Admin runtime only'
         required: true
         type: string
+  pull_request:
+    paths:
+      - '.github/workflows/init-east-africa-admin-runtime.yml'
+      - 'scripts/create-east-africa-admin-password-hash.php'
 
 permissions:
   contents: read
 
-concurrency:
-  group: sakura-gloria-east-africa-admin-init
-  cancel-in-progress: false
-
 jobs:
+  validate-init-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PHP CLI
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli
+
+      - name: Lint and dry-run the password hash helper
+        env:
+          DRY_RUN_PASSWORD: github-actions-dry-run-password
+        run: |
+          set -euo pipefail
+          php -l scripts/create-east-africa-admin-password-hash.php
+          HASH_FILE="${RUNNER_TEMP}/ea-admin-password.hash.dry-run"
+          rm -f "$HASH_FILE"
+          printf '%s' "$DRY_RUN_PASSWORD" \
+            | EA_ADMIN_HASH_PATH="$HASH_FILE" php scripts/create-east-africa-admin-password-hash.php
+          EA_ADMIN_HASH_PATH="$HASH_FILE" php -r '
+            $path = getenv("EA_ADMIN_HASH_PATH");
+            $hash = is_string($path) ? file_get_contents($path) : false;
+            $info = is_string($hash) ? password_get_info($hash) : [];
+            $password = getenv("DRY_RUN_PASSWORD");
+            if (!is_string($hash) || ($info["algoName"] ?? "unknown") === "unknown") {
+                fwrite(STDERR, "dry-run hash validation failed" . PHP_EOL);
+                exit(1);
+            }
+            if (!is_string($password) || !password_verify($password, $hash)) {
+                fwrite(STDERR, "dry-run hash verification failed" . PHP_EOL);
+                exit(1);
+            }
+            fwrite(STDOUT, "dry-run hash created and verified" . PHP_EOL);
+          '
+          rm -f "$HASH_FILE"
+
   initialize-ea-admin-runtime:
-    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/east-africa-admin-server-init') && inputs.confirm == 'INIT_EA_ADMIN' }}
+    needs: validate-init-files
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm == 'INIT_EA_ADMIN' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: sakura-gloria-east-africa-admin-init
+      cancel-in-progress: false
     env:
       SSH_HOST: ${{ secrets.SAKURA_HOST }}
       SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
       SSH_USER: ${{ secrets.SAKURA_USER }}
+      REMOTE_HELPER: /home/gltr/ea-admin-data/create-admin-password-hash.php
 
     steps:
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
       - name: Validate confirmation and required secrets
         env:
           CONFIRM_INPUT: ${{ inputs.confirm }}
@@ -34,16 +84,14 @@ jobs:
         run: |
           set -euo pipefail
           test "$CONFIRM_INPUT" = INIT_EA_ADMIN
-          case "$GITHUB_REF" in
-            refs/heads/main|refs/heads/east-africa-admin-server-init) ;;
-            *) exit 1 ;;
-          esac
+          test "$GITHUB_REF" = refs/heads/main
           test -n "$SSH_HOST"
           test -n "$SSH_PORT"
           test -n "$SSH_USER"
           test -n "$DEPLOY_KEY"
           test -n "$EA_ADMIN_PASSWORD"
           test "${#EA_ADMIN_PASSWORD}" -ge 12
+          test -f scripts/create-east-africa-admin-password-hash.php
 
       - name: Set up SSH
         env:
@@ -101,78 +149,18 @@ jobs:
           set -euo pipefail
           test -n "$EA_ADMIN_PASSWORD"
           test "${#EA_ADMIN_PASSWORD}" -ge 12
-
-          REMOTE_PHP="$(cat <<'PHP'
-          $path = "/home/gltr/ea-admin-data/admin-password.hash";
-          $password = stream_get_contents(STDIN);
-
-          function fail_with_cleanup($message, $temporaryPath = null) {
-              if (is_string($temporaryPath) && $temporaryPath !== "") {
-                  @unlink($temporaryPath);
-              }
-              fwrite(STDERR, $message . PHP_EOL);
-              exit(1);
-          }
-
-          if (!is_string($password) || $password === "") {
-              fail_with_cleanup("EA admin password input is missing.");
-          }
-          if (file_exists($path) || is_link($path)) {
-              fail_with_cleanup("Refusing to overwrite the existing admin password hash.");
-          }
-
-          $hash = password_hash($password, PASSWORD_DEFAULT);
-          if (!is_string($hash) || $hash === "") {
-              fail_with_cleanup("Failed to create the admin password hash.");
-          }
-
-          $createdInfo = password_get_info($hash);
-          if (($createdInfo["algoName"] ?? "unknown") === "unknown") {
-              fail_with_cleanup("The created password hash was not recognized.");
-          }
-
-          umask(0077);
-          $temporaryPath = $path . ".tmp." . getmypid();
-          $written = file_put_contents($temporaryPath, $hash, LOCK_EX);
-          if ($written !== strlen($hash)) {
-              fail_with_cleanup("Failed to write the admin password hash.", $temporaryPath);
-          }
-          if (!chmod($temporaryPath, 0600)) {
-              fail_with_cleanup("Failed to set the admin password hash mode.", $temporaryPath);
-          }
-          if (!link($temporaryPath, $path)) {
-              fail_with_cleanup("Failed to install the admin password hash without overwriting.", $temporaryPath);
-          }
-          if (!unlink($temporaryPath)) {
-              @unlink($path);
-              fail_with_cleanup("Failed to remove the temporary hash file.");
-          }
-
-          clearstatcache(true, $path);
-          $storedHash = file_get_contents($path);
-          $storedInfo = is_string($storedHash) ? password_get_info($storedHash) : [];
-          $mode = fileperms($path);
-          if (!is_string($storedHash) || $storedHash !== $hash) {
-              fail_with_cleanup("The stored admin password hash does not match the created hash.");
-          }
-          if (($storedInfo["algoName"] ?? "unknown") === "unknown") {
-              fail_with_cleanup("The stored admin password hash was not recognized.");
-          }
-          if (!is_int($mode) || (($mode & 0777) !== 0600)) {
-              fail_with_cleanup("The stored admin password hash mode is not 600.");
-          }
-          if (!password_verify($password, $storedHash)) {
-              fail_with_cleanup("The stored admin password hash failed verification.");
-          }
-
-          $password = "";
-          unset($password);
-          fwrite(STDOUT, "EA admin password hash created and verified with password_get_info()." . PHP_EOL);
-          PHP
-          )"
-
-          printf '%s' "$EA_ADMIN_PASSWORD" |
-            env -u EA_ADMIN_PASSWORD ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" "php -r '$REMOTE_PHP'"
+          scp -i ~/.ssh/ea_admin_init_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            scripts/create-east-africa-admin-password-hash.php \
+            "$SSH_USER@$SSH_HOST:$REMOTE_HELPER"
+          ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          test -f /home/gltr/ea-admin-data/create-admin-password-hash.php
+          chmod 700 /home/gltr/ea-admin-data/create-admin-password-hash.php
+          REMOTE
+          printf '%s' "$EA_ADMIN_PASSWORD" | env -u EA_ADMIN_PASSWORD \
+            ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'php /home/gltr/ea-admin-data/create-admin-password-hash.php'
 
       - name: Verify final East Africa Admin runtime state
         run: |
@@ -216,6 +204,12 @@ jobs:
           PHP
           REMOTE
 
-      - name: Remove SSH key from runner
+      - name: Remove remote helper and SSH key
         if: ${{ always() }}
-        run: rm -f ~/.ssh/ea_admin_init_key
+        run: |
+          set -euo pipefail
+          if test -f ~/.ssh/ea_admin_init_key && test -n "$SSH_HOST" && test -n "$SSH_USER"; then
+            ssh -i ~/.ssh/ea_admin_init_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes \
+              "$SSH_USER@$SSH_HOST" 'rm -f /home/gltr/ea-admin-data/create-admin-password-hash.php' || true
+          fi
+          rm -f ~/.ssh/ea_admin_init_key
