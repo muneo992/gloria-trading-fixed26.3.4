@@ -1,0 +1,125 @@
+name: Deploy South Africa to Sakura
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY_SA to deploy South Africa only'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sakura-gloria-south-africa-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-sa:
+    runs-on: ubuntu-latest
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/south-africa-phase1') && inputs.confirm == 'DEPLOY_SA' }}
+    env:
+      SA_PATH: /home/gltr/www/gloria-sa
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+    steps:
+      - name: Checkout the dispatched commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Validate source and destination
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = DEPLOY_SA
+          case "$GITHUB_REF" in
+            refs/heads/main|refs/heads/south-africa-phase1) ;;
+            *) exit 1 ;;
+          esac
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$SA_PATH" = /home/gltr/www/gloria-sa
+          test "$SA_PATH" != /home/gltr/www/gloria-ea
+          test "$SA_PATH" != /home/gltr/www/gloria-site
+          test -f south-africa/index.html
+          test -f south-africa/data/vehicles.json
+          test -f south-africa/js/sa.js
+          test -z "$(find south-africa -type l -print -quit)"
+          node --check south-africa/js/sa.js
+          node scripts/check-south-africa.js
+          python3 scripts/check-south-africa.py
+
+      - name: Install rsync
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/sa_deploy_key
+          chmod 600 ~/.ssh/sa_deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Validate remote directory and back up South Africa
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/sa_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          SA_PATH='/home/gltr/www/gloria-sa'
+          EA_PATH='/home/gltr/www/gloria-ea'
+          test "$SA_PATH" = /home/gltr/www/gloria-sa
+          test "$SA_PATH" != "$EA_PATH"
+          if [ ! -d "$SA_PATH" ]; then
+            echo "South Africa destination does not exist: $SA_PATH"
+            echo "Create this directory on Sakura before the first deployment. This workflow will not create it."
+            exit 1
+          fi
+          test ! -L "$SA_PATH"
+          test "$(cd "$SA_PATH" && pwd -P)" = "$SA_PATH"
+          test -z "$(find "$SA_PATH" -type l -print -quit)"
+          BACKUP_BASE='/home/gltr/sa-backups'
+          mkdir -p "$BACKUP_BASE"
+          chmod 700 "$BACKUP_BASE"
+          BACKUP_FILE="$BACKUP_BASE/gloria-sa-$(date -u +%Y%m%d-%H%M%S)-$$.tar.gz"
+          umask 077
+          tar -C "$SA_PATH" -czf "$BACKUP_FILE" .
+          test -s "$BACKUP_FILE"
+          tar -tzf "$BACKUP_FILE" >/dev/null
+          echo "South Africa backup: $BACKUP_FILE"
+          REMOTE
+
+      - name: Deploy South Africa files only
+        run: |
+          set -euo pipefail
+          test "$SA_PATH" = /home/gltr/www/gloria-sa
+          test "$SA_PATH" != /home/gltr/www/gloria-ea
+          rsync -az --checksum --delay-updates \
+            -e "ssh -i ~/.ssh/sa_deploy_key -p $SSH_PORT -o StrictHostKeyChecking=yes" \
+            south-africa/ "$SSH_USER@$SSH_HOST:$SA_PATH/"
+          CHANGES="$(rsync -aznci \
+            -e "ssh -i ~/.ssh/sa_deploy_key -p $SSH_PORT -o StrictHostKeyChecking=yes" \
+            south-africa/ "$SSH_USER@$SSH_HOST:$SA_PATH/")"
+          test -z "$CHANGES"
+
+      - name: Verify South Africa public pages
+        run: |
+          set -euo pipefail
+          for PAGE in '' vehicles.html how-to-buy.html about.html contact.html request.html vehicle-detail.html css/base.css css/sa.css js/sa.js images/gloria-trading-logo.jpg data/vehicles.json robots.txt sitemap.xml; do
+            curl --fail --silent --show-error --max-time 30 "https://sa.gloriatrading.com/$PAGE" -o /dev/null
+          done
+          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/ -o /tmp/sa-home.html
+          grep -q 'RHD EV' /tmp/sa-home.html
+          grep -q 'https://sa.gloriatrading.com/' /tmp/sa-home.html
+          grep -q 'Import requirements must be confirmed before shipment' /tmp/sa-home.html
+
+      - name: Remove deployment key
+        if: always()
+        run: rm -f ~/.ssh/sa_deploy_key

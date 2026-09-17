@@ -73,6 +73,7 @@ jobs:
             --exclude='Thumbs.db' \
             --exclude='node_modules/'
             --exclude='/east-africa/' \
+            --exclude='/south-africa/' \
             --exclude='netlify.toml' \
             --exclude='*.zip' \
             --exclude='admin/password.txt' \
