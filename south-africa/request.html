@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request a Vehicle | Gloria Trading South Africa</title>
+  <meta name="description" content="Tell Gloria Trading what RHD EV or PHEV you need for South Africa. Send your request by WhatsApp or email. You do not need every detail.">
+  <link rel="canonical" href="https://sa.gloriatrading.com/request.html">
+  <meta property="og:title" content="Request a Vehicle | Gloria Trading South Africa">
+  <meta property="og:description" content="Tell Gloria Trading what RHD EV or PHEV you need for South Africa. Send your request by WhatsApp or email.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://sa.gloriatrading.com/request.html">
+  <meta property="og:site_name" content="Gloria Trading">
+  <meta property="og:image" content="https://sa.gloriatrading.com/images/gloria-trading-logo.jpg">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/sa.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Gloria Trading","url":"https://sa.gloriatrading.com/","logo":"https://sa.gloriatrading.com/images/gloria-trading-logo.jpg","email":"info@gloriatrading.com","telephone":"+81-22-398-4475","address":{"@type":"PostalAddress","streetAddress":"2-4-5 Sogodai","addressLocality":"Natori-shi","addressRegion":"Miyagi-ken","postalCode":"982-0046","addressCountry":"JP"}}</script>
+  <script src="js/sa.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="container">
+        <a class="logo" href="index.html"><img src="images/gloria-trading-logo.jpg" width="42" height="42" alt="Gloria Trading"><span>Gloria Trading<small>South Africa</small></span></a>
+        <button class="navbar-toggle" id="navToggle" aria-controls="navMenu" aria-expanded="false" aria-label="Open menu"><span></span><span></span><span></span></button>
+        <ul class="navbar-menu" id="navMenu">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="vehicles.html">Vehicles</a></li>
+          <li><a href="how-to-buy.html">How to Buy</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+        <a class="header-cta" href="request.html">Request a Vehicle</a>
+      </div>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="ea-section">
+      <div class="container narrow">
+        <h1>Request a Vehicle</h1>
+        <p>Gloria Trading searches Japanese auctions for right-hand-drive EV and PHEV vehicles matching what you need. Send what you already know. You do not need every detail.</p>
+        <div class="request-example">
+          <strong>Example request</strong>
+          <p>RHD EV or PHEV<br>2020–2024<br>4-door<br>Good driving range<br>Intended use: ride-hailing (eligibility to be confirmed separately)</p>
+        </div>
+        <form id="request-form">
+          <fieldset>
+            <legend>Your vehicle request</legend>
+            <div class="request-grid">
+              <div class="form-group">
+                <label for="name">Name (required)</label>
+                <input id="name" name="name" type="text" required maxlength="150" autocomplete="name">
+              </div>
+              <div class="form-group">
+                <label for="whatsapp">WhatsApp (required)</label>
+                <input id="whatsapp" name="whatsapp" type="tel" required maxlength="150" autocomplete="tel" placeholder="Include country code, e.g. +27">
+              </div>
+              <div class="form-group">
+                <label for="city">City / area in South Africa (optional)</label>
+                <input id="city" name="city" type="text" maxlength="150" placeholder="e.g. Johannesburg, Cape Town, Durban">
+              </div>
+              <div class="form-group">
+                <label for="model">Vehicle / model (required)</label>
+                <input id="model" name="model" type="text" required maxlength="150" placeholder="e.g. Nissan Leaf, or EV/PHEV 4-door" list="models">
+              </div>
+              <div class="form-group">
+                <label for="year">Year range (optional)</label>
+                <input id="year" name="year" type="text" maxlength="150" placeholder="e.g. 2020–2024">
+              </div>
+              <div class="form-group">
+                <label for="mileage">Maximum mileage, km (optional)</label>
+                <input id="mileage" name="mileage" type="number" min="0" step="any">
+              </div>
+              <div class="form-group">
+                <label for="powertrain">EV or PHEV (optional)</label>
+                <select id="powertrain" name="powertrain">
+                  <option value="">Not decided</option>
+                  <option>EV</option>
+                  <option>PHEV</option>
+                  <option>EV or PHEV</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="doors">Body / doors (optional)</label>
+                <select id="doors" name="doors">
+                  <option value="">Not decided</option>
+                  <option>4-door</option>
+                  <option>SUV</option>
+                  <option>Hatchback</option>
+                  <option>Sedan</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="range">Driving range preference (optional)</label>
+                <input id="range" name="range" type="text" maxlength="150" placeholder="e.g. longer range preferred">
+              </div>
+              <div class="form-group">
+                <label for="intended_use">Intended use (optional)</label>
+                <select id="intended_use" name="intended_use">
+                  <option value="">Not specified</option>
+                  <option>Personal use</option>
+                  <option>Ride-hailing (Uber or similar — eligibility not guaranteed)</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="budget">Target budget, USD (optional)</label>
+                <input id="budget" name="budget" type="number" min="0" step="any">
+              </div>
+            </div>
+            <datalist id="models">
+              <option value="Nissan Leaf"></option>
+              <option value="Toyota Prius PHV"></option>
+              <option value="Mitsubishi Outlander PHEV"></option>
+              <option value="Mitsubishi Eclipse Cross PHEV"></option>
+              <option value="RHD EV or PHEV, 4-door"></option>
+            </datalist>
+            <div class="form-group">
+              <label for="additional">Additional request (optional)</label>
+              <textarea name="additional" id="additional" rows="4" maxlength="2000" placeholder="Anything else we should search for."></textarea>
+            </div>
+            <p class="form-note">Import requirements must be confirmed before shipment. Ride-hailing platform eligibility must be confirmed separately.</p>
+            <div class="actions">
+              <button type="submit" class="btn btn-primary">Send via WhatsApp</button>
+              <button type="button" class="btn btn-secondary" id="email-request">Send via Email</button>
+            </div>
+            <p class="form-note">Your message opens in WhatsApp or your email app. Review it and press send there. Nothing is sent automatically.</p>
+            <p id="request-status" role="status"></p>
+          </fieldset>
+        </form>
+        <noscript>
+          <p>The form needs JavaScript. Contact us directly on <a href="https://wa.me/819076671825">WhatsApp</a> or <a href="mailto:info@gloriatrading.com">email</a>.</p>
+        </noscript>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="container ea-footer">
+      <div><strong>Gloria Trading · Japan</strong><p>Our success begins with yours.</p></div>
+      <div><a href="https://wa.me/819076671825">WhatsApp: +81-90-7667-1825</a><br><a href="mailto:info@gloriatrading.com">info@gloriatrading.com</a></div>
+      <p>© 2026 Gloria Trading.<br>Example types are not stock offers. Import requirements must be confirmed before shipment.</p>
+    </div>
+  </footer>
+  <div class="mobile-cta" aria-label="Quick contact">
+    <a class="btn btn-primary" href="request.html">Request a Vehicle</a>
+    <a class="btn btn-whatsapp" href="https://wa.me/819076671825">WhatsApp</a>
+  </div>
+</body>
+</html>
