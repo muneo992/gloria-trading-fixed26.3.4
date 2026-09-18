@@ -90,11 +90,7 @@ jobs:
             test -d "$DIR"
             test ! -L "$DIR"
             test "$(cd "$DIR" && pwd -P)" = "$DIR"
-            perm="$(stat -c '%a' "$DIR")"
-            owner="$(stat -c '%U' "$DIR")"
-            echo "$DIR owner=$owner perm=$perm"
-            test "$perm" = 700
-            test -w "$DIR"
+            DIR="$DIR" php -r '$d=getenv("DIR"); if (!is_string($d) || !is_dir($d) || is_link($d)) { fwrite(STDERR, "bad dir\n"); exit(1);} $perm=substr(sprintf("%o", fileperms($d)), -3); $owner=function_exists("posix_getpwuid") ? (posix_getpwuid(fileowner($d))["name"] ?? "") : (string)fileowner($d); echo $d, " owner=", $owner, " perm=", $perm, PHP_EOL; if ($perm !== "700") { fwrite(STDERR, "perm not 700\n"); exit(1);} if (!is_writable($d)) { fwrite(STDERR, "not writable\n"); exit(1); }'
           done
           test ! -e "$DATA/admin-password.hash"
           test ! -e "$DATA/vehicles.json"
