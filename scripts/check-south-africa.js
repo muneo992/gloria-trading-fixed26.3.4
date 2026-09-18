@@ -45,7 +45,8 @@ const ids = new Set();
 for (const v of vehicles) {
   if (!v.ref_id || ids.has(v.ref_id) || !v.make || !v.model) throw new Error(`vehicle ${v.ref_id}`);
   ids.add(v.ref_id);
-  if (v.listing_type !== 'example') throw new Error(`listing_type ${v.ref_id}`);
+  if (v.listing_type !== 'sample' && v.listing_type !== 'available') throw new Error(`listing_type ${v.ref_id}`);
+  if (v.status !== 'published' && v.status !== 'draft') throw new Error(`status ${v.ref_id}`);
   for (const key of ['year', 'mileage_km', 'battery', 'range', 'reference_price_usd', 'video_url']) {
     const value = v[key];
     if (!(value === null || value === '' || (Array.isArray(value) && value.length === 0))) {
@@ -59,8 +60,10 @@ for (const v of vehicles) {
 }
 
 const js = fs.readFileSync(path.join(ROOT, 'js', 'sa.js'), 'utf8');
-if (!js.includes('wa.me/819076671825') || !js.includes('info@gloriatrading.com') || !js.includes('textContent')) {
-  throw new Error('js contact or rendering');
+if (!js.includes('Example vehicle — not current stock')) throw new Error('sample wording');
+if (!fs.existsSync(path.join(ROOT, 'admin', 'index.php'))) throw new Error('admin missing');
+if (fs.existsSync(path.join(ROOT, 'admin-password.hash')) || fs.existsSync(path.join(ROOT, 'lib', 'admin-password.hash'))) {
+  throw new Error('password hash must not be in the public tree');
 }
 
 const sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf8');

@@ -18,7 +18,7 @@ concurrency:
 jobs:
   deploy-sa:
     runs-on: ubuntu-latest
-    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/south-africa-phase1') && inputs.confirm == 'DEPLOY_SA' }}
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/south-africa-phase1' || github.ref == 'refs/heads/south-africa-admin-v1') && inputs.confirm == 'DEPLOY_SA' }}
     env:
       SA_PATH: /home/gltr/www/gloria-sa
       SSH_HOST: ${{ secrets.SAKURA_HOST }}
@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           test "$CONFIRM_INPUT" = DEPLOY_SA
           case "$GITHUB_REF" in
-            refs/heads/main|refs/heads/south-africa-phase1) ;;
+            refs/heads/main|refs/heads/south-africa-phase1|refs/heads/south-africa-admin-v1) ;;
             *) exit 1 ;;
           esac
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"

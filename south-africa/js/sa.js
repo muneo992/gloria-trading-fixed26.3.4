@@ -86,14 +86,11 @@ function provided(value) {
 function positive(value) {
   return value !== null && value !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
 }
-function unknown(value) {
-  return provided(value) ? String(value) : 'Not provided';
-}
 function price(value) {
-  return positive(value) ? `USD ${Number(value).toLocaleString('en-US')}` : 'Not provided — request a quotation';
+  return positive(value) ? `USD ${Number(value).toLocaleString('en-US')}` : '';
 }
 function mileage(v) {
-  return positive(v.mileage_km) ? `${Number(v.mileage_km).toLocaleString('en-US')} km` : 'Not provided';
+  return positive(v.mileage_km) ? `${Number(v.mileage_km).toLocaleString('en-US')} km` : '';
 }
 function requestUrl(v) {
   return `request.html?${new URLSearchParams({
@@ -123,18 +120,25 @@ function safeVideoUrl(src) {
     return null;
   }
 }
+function isSample(v) {
+  return v.listing_type !== 'available';
+}
 function listingLabel(v) {
-  return v.listing_type === 'example'
-    ? 'Example type · Not current stock'
-    : 'Reference vehicle · Not a stock offer';
+  return isSample(v)
+    ? 'Example vehicle — not current stock.'
+    : 'Japanese auction candidate. Availability must be confirmed.';
 }
 function prices(v) {
   const block = element('div', undefined, 'price-lines');
-  block.append(element('p', `Price: ${price(v.reference_price_usd)}`));
-  if (v.price_as_of && positive(v.reference_price_usd)) {
-    block.append(element('p', `Price reference date: ${v.price_as_of}`));
+  const amount = price(v.reference_price_usd);
+  if (amount) {
+    block.append(element('p', isSample(v) ? `Reference FOB Japan: ${amount}` : `FOB Japan: ${amount}`));
+    if (v.price_as_of) block.append(element('p', `Price reference date: ${v.price_as_of}`));
+    if (isSample(v)) block.append(element('p', 'Price and availability may change.'));
+  } else {
+    block.append(element('p', 'Request a quotation'));
   }
-  block.append(element('p', 'Gloria Trading searches Japanese auctions for a matching vehicle. Displayed examples are not guaranteed stock.'));
+  block.append(element('p', 'Gloria Trading searches Japanese auctions for a matching vehicle. Import requirements must be confirmed before shipment.'));
   return block;
 }
 function notice(target, message) {
@@ -143,17 +147,23 @@ function notice(target, message) {
   target.replaceChildren(panel);
 }
 function specRows(v) {
-  return {
+  const rows = {
     'Make / Model': [v.make, v.model].filter(Boolean).join(' '),
     'Year': provided(v.year) ? v.year : null,
-    'Mileage': positive(v.mileage_km) ? mileage(v) : null,
-    'Powertrain': v.powertrain,
-    'Battery information': v.battery,
-    'Driving range': v.range,
-    'Body': v.body,
-    'Steering': v.steering,
-    'Price': positive(v.reference_price_usd) ? price(v.reference_price_usd) : null
+    'Mileage': mileage(v) || null,
+    'Powertrain': provided(v.powertrain) ? v.powertrain : null,
+    'Battery capacity': provided(v.battery) ? v.battery : null,
+    'Driving range': provided(v.range) ? v.range : null,
+    'Body': provided(v.body) ? v.body : null,
+    'Doors': provided(v.doors) ? v.doors : null,
+    'Transmission': provided(v.transmission) ? v.transmission : null,
+    'Steering': provided(v.steering) ? v.steering : null
   };
+  return rows;
+}
+function appendMeta(card, label, value) {
+  if (!provided(value)) return;
+  card.append(element('p', `${label}: ${value}`));
 }
 if (grid || detail) {
   fetch('data/vehicles.json', { cache: 'no-store' }).then(r => {
@@ -168,29 +178,32 @@ if (grid || detail) {
         notice(grid, 'Example vehicle types are being prepared. Send your requirements and Gloria Trading will search Japanese auctions.');
       }
       vehicles.forEach(v => {
+        if (v.status && v.status !== 'published') return;
         const card = element('article', undefined, 'vehicle-card');
         const img = photo((v.gallery || [])[0], title(v));
         if (img) card.append(img);
-        else card.append(element('p', 'Photos are provided when a matching auction vehicle is found.', 'no-photo'));
-        card.append(
-          element('p', listingLabel(v), 'reference-label'),
-          element('h2', title(v)),
-          element('p', [v.powertrain, v.body, v.steering].filter(Boolean).join(' · ')),
-          element('p', `Year: ${unknown(v.year)}`),
-          element('p', `Mileage: ${mileage(v)}`),
-          element('p', `Battery: ${unknown(v.battery)}`),
-          element('p', `Driving range: ${unknown(v.range)}`),
-          prices(v),
-          link('View details', `vehicle-detail.html?ref=${encodeURIComponent(v.ref_id)}`)
-        );
+        else card.append(element('p', 'Photos are provided when available for a specific vehicle.', 'no-photo'));
+        card.append(element('p', listingLabel(v), 'reference-label'));
+        if (isSample(v)) card.append(element('p', 'Price and availability may change.'));
+        card.append(element('h2', title(v)));
+        const summary = [v.powertrain, v.body, v.steering].filter(Boolean).join(' · ');
+        if (summary) card.append(element('p', summary));
+        appendMeta(card, 'Year', v.year);
+        appendMeta(card, 'Mileage', mileage(v));
+        appendMeta(card, 'Battery', v.battery);
+        appendMeta(card, 'Driving range', v.range);
+        card.append(prices(v), link('View details', `vehicle-detail.html?ref=${encodeURIComponent(v.ref_id)}`));
         grid.append(card);
       });
+      if (!grid.childElementCount) {
+        notice(grid, 'Published vehicles are being prepared. Send your requirements and Gloria Trading will search Japanese auctions.');
+      }
     }
     if (detail) {
       const ref = new URLSearchParams(location.search).get('ref');
-      const v = vehicles.find(item => item.ref_id === ref);
+      const v = vehicles.find(item => item.ref_id === ref && (!item.status || item.status === 'published'));
       if (!v) {
-        notice(detail, 'This example is not available. You can still request a vehicle by model.');
+        notice(detail, 'This vehicle is not available. You can still request a vehicle by model.');
         return;
       }
       const url = `https://sa.gloriatrading.com/vehicle-detail.html?ref=${encodeURIComponent(v.ref_id)}`;
@@ -199,31 +212,32 @@ if (grid || detail) {
       document.querySelector('meta[property="og:url"]').content = url;
       document.querySelector('meta[property="og:title"]').content = document.title;
       document.querySelector('h1').textContent = title(v);
-      detail.replaceChildren(element('p', `${listingLabel(v)} · ${v.ref_id}`, 'reference-label'));
+      detail.replaceChildren(element('p', `${listingLabel(v)} ${v.ref_id}`, 'reference-label'));
+      if (isSample(v)) detail.append(element('p', 'Price and availability may change.'));
       const gallery = element('div', undefined, 'detail-gallery');
       (v.gallery || []).forEach(src => {
         const img = photo(src, title(v));
         if (img) gallery.append(img);
       });
       if (!gallery.childElementCount) {
-        gallery.append(element('p', 'Photos and video are shared when a matching auction vehicle is found.', 'no-photo'));
+        gallery.append(element('p', 'Photos are provided when available for a specific vehicle.', 'no-photo'));
       }
       detail.append(gallery);
       const specs = element('dl', undefined, 'specs');
       for (const [label, value] of Object.entries(specRows(v))) {
+        if (!provided(value)) continue;
         const row = element('div');
-        row.append(element('dt', label), element('dd', value || 'Not provided'));
+        row.append(element('dt', label), element('dd', value));
         specs.append(row);
       }
       detail.append(specs, prices(v));
+      if (provided(v.auction_condition)) detail.append(element('p', v.auction_condition));
       if (provided(v.notes)) detail.append(element('p', v.notes));
       const video = safeVideoUrl(v.video_url);
       if (video) {
         const videoBlock = element('p', undefined, 'video-note');
         videoBlock.append(link('Watch available video', video, 'btn btn-secondary'));
         detail.append(videoBlock);
-      } else {
-        detail.append(element('p', 'Video: not provided for this example. Video is shared when available for a specific candidate.', 'video-note'));
       }
       document.getElementById('similar-request').href = requestUrl(v);
     }

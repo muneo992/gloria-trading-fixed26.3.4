@@ -65,7 +65,8 @@ for v in vehicles:
     assert v.get('ref_id') and v['ref_id'] not in ids
     ids.add(v['ref_id'])
     assert v.get('make') and v.get('model')
-    assert v.get('listing_type') == 'example'
+    assert v.get('listing_type') in ('sample', 'available')
+    assert v.get('status') in ('published', 'draft')
     for key in ('year', 'mileage_km', 'battery', 'range', 'reference_price_usd', 'video_url'):
         value = v.get(key)
         assert value in (None, '', [])
