@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type DEPLOY_SA to deploy South Africa only'
+        description: 'Type PREPARE_SA_ADMIN_DATA for stage-0 directory setup, or DEPLOY_SA to deploy South Africa only'
         required: true
         type: string
 
@@ -16,6 +16,106 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-sa-admin-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.ref == 'refs/heads/south-africa-admin-v1' && inputs.confirm == 'PREPARE_SA_ADMIN_DATA' }}
+    env:
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+    steps:
+      - name: Validate confirmation
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = PREPARE_SA_ADMIN_DATA
+          test "$GITHUB_REF" = refs/heads/south-africa-admin-v1
+          test -n "$SSH_HOST"
+          test -n "$SSH_PORT"
+          test -n "$SSH_USER"
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/sa_prepare_key
+          chmod 600 ~/.ssh/sa_prepare_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Inspect PHP and create sa-admin-data only
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/sa_prepare_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          echo '=== php -v ==='
+          php -v
+          echo '=== php modules ==='
+          php -m | grep -E '^(fileinfo|json|session)$' || true
+          php -r 'echo "PHP_VERSION=" . PHP_VERSION . PHP_EOL; echo "PHP81=" . (PHP_VERSION_ID >= 80100 ? "yes" : "no") . PHP_EOL;'
+          php -r 'foreach (["json","session","fileinfo"] as $e) { echo $e . "=" . (extension_loaded($e) ? "yes" : "no") . PHP_EOL; }'
+          php -r 'echo "password_hash=" . (function_exists("password_hash") ? "yes" : "no") . PHP_EOL; echo "getimagesize=" . (function_exists("getimagesize") ? "yes" : "no") . PHP_EOL;'
+
+          DATA='/home/gltr/sa-admin-data'
+          test "$DATA" != '/home/gltr/ea-admin-data'
+          test "$DATA" != '/home/gltr/www/gloria-sa'
+          test "$DATA" != '/home/gltr/www/gloria-ea'
+          if [ -e "$DATA" ] && [ -L "$DATA" ]; then
+            echo "Refusing to use symlink: $DATA"
+            exit 1
+          fi
+          install -d -m 700 "$DATA"
+          install -d -m 700 "$DATA/backups"
+          install -d -m 700 "$DATA/login-attempts"
+          install -d -m 700 "$DATA/images"
+          for DIR in "$DATA" "$DATA/backups" "$DATA/login-attempts" "$DATA/images"; do
+            test -d "$DIR"
+            test ! -L "$DIR"
+            test "$(cd "$DIR" && pwd -P)" = "$DIR"
+            perm="$(stat -c '%a' "$DIR")"
+            owner="$(stat -c '%U' "$DIR")"
+            echo "$DIR owner=$owner perm=$perm"
+            test "$perm" = 700
+            test -w "$DIR"
+          done
+          test ! -e "$DATA/admin-password.hash"
+          test ! -e "$DATA/vehicles.json"
+
+          TESTFILE="$DATA/.php-write-probe"
+          php -r '$p=getenv("SA_PROBE"); if (!is_string($p) || $p==="") { $p="/home/gltr/sa-admin-data/.php-write-probe"; } if (file_put_contents($p, "ok") === false) { fwrite(STDERR, "php write failed\n"); exit(1); }'
+          test -f "$TESTFILE"
+          rm -f "$TESTFILE"
+          test ! -f "$TESTFILE"
+          echo "php_write_probe=ok"
+          echo "whoami=$(whoami)"
+          id
+          REMOTE
+
+      - name: Confirm public South Africa URLs
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/ -o /tmp/sa-home.html
+          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/vehicles.html -o /tmp/sa-vehicles.html
+          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/data/vehicles.json -o /tmp/sa-vehicles.json
+          grep -q 'RHD EV' /tmp/sa-home.html
+          grep -q 'Import requirements must be confirmed before shipment' /tmp/sa-home.html
+          python3 - <<'PY'
+          import json
+          data=json.load(open("/tmp/sa-vehicles.json",encoding="utf-8"))
+          assert "vehicles" in data and len(data["vehicles"])>=1
+          print("public_json_vehicles", len(data["vehicles"]))
+          PY
+          echo 'public_urls=ok'
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/sa_prepare_key
+
   deploy-sa:
     runs-on: ubuntu-latest
     if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/south-africa-phase1' || github.ref == 'refs/heads/south-africa-admin-v1') && inputs.confirm == 'DEPLOY_SA' }}
