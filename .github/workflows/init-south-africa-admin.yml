@@ -47,7 +47,8 @@ jobs:
           test ! -f south-africa/admin-password.hash
           test ! -f south-africa/lib/admin-password.hash
           test ! -f south-africa/bootstrap.token
-          if grep -qF 'EA_ADMIN_PASSWORD' .github/workflows/init-south-africa-admin.yml; then
+          needle="$(printf '%s%s' 'EA_ADMIN' '_PASSWORD')"
+          if grep -qF "$needle" .github/workflows/init-south-africa-admin.yml; then
             echo 'This workflow must not use East Africa password secrets.'
             exit 1
           fi
