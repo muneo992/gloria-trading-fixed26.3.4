@@ -136,6 +136,7 @@ jobs:
             --exclude='/vehicles.json' \
             --exclude='/frontend/data/backup/'
             --exclude='/east-africa/' \
+            --exclude='/south-africa/' \
             -e "ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=yes" \
             ./ \
             "$SSH_USER@$SSH_HOST:$SAKURA_TEST_PATH/"

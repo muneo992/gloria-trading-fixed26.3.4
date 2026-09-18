@@ -1,0 +1,35 @@
+/* South Africa Phase 1 — based on East Africa overrides of the Gloria Trading stylesheet. */
+html {scroll-behavior:auto} body {--text-muted:#505b54;--green-mid:#007536;overflow-wrap:anywhere}
+a {color:#006b31} p {color:var(--text-muted)}
+:focus-visible {outline:3px solid #be8d00;outline-offset:4px}
+.skip-link {position:fixed;left:1rem;top:-5rem;z-index:2000;background:white;padding:1rem}.skip-link:focus {top:1rem}
+.logo::before {content:none}.logo img {object-fit:contain;border-radius:0}.logo small {display:block;font-size:.75rem;letter-spacing:.1em;font-weight:500}.logo {line-height:1.15;font-size:1.2rem;letter-spacing:0}
+.navbar .container {min-height:76px;height:auto;gap:1rem}.navbar-menu {height:76px}.navbar-menu a {font-size:.9rem;padding:0 11px}.header-cta {color:white;border:1px solid #a5ceb7;border-radius:4px;padding:.5rem .8rem;font-size:.875rem;font-weight:600;white-space:nowrap}.header-cta:hover {color:white;background:#007536}
+.ea-hero {padding:3rem 0;background:#f0f7f2;border-bottom:1px solid #d6e8dc}.eyebrow {font-size:.875rem;font-weight:600;color:var(--green-dark);letter-spacing:.035em}.ea-hero h1 {font-size:clamp(2rem,4vw,3.3rem);max-width:900px;letter-spacing:-.025em}.hero-lead {font-size:1.4rem;color:#143d25;font-weight:600;margin:1.2rem 0 .35rem}.hero-description {max-width:660px;font-size:1.05rem}.capabilities {font-size:.875rem;margin-top:1.5rem;max-width:800px}.actions {display:flex;flex-wrap:wrap;gap:.75rem;margin:1.3rem 0}.btn {font-size:1rem;min-height:46px;display:inline-flex;align-items:center;justify-content:center}.btn-secondary {color:#005a2b;border:1px solid #005a2b;background:white}.btn-secondary:hover {background:#edf5f0;color:#005a2b}
+.ea-section {padding:2.6rem 0}.narrow {max-width:1040px}.service-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.8rem;margin-top:1.5rem}.service-grid article {border-top:2px solid #bad7c5;padding-top:1rem}.service-grid h3 {font-size:1.15rem}.step-number {display:block;font-size:.875rem;color:#006b31;margin-bottom:.5rem}
+.ea-footer {display:flex;justify-content:space-between;gap:1.5rem;flex-wrap:wrap}.site-footer {padding:2rem 0}.ea-footer p,.ea-footer a {color:#e0eee5;font-size:.875rem}.ea-footer strong {color:white}.ea-footer p {margin-top:.3rem}
+.company-facts {display:grid;grid-template-columns:160px 1fr;gap:.75rem 1.5rem;margin:2rem 0;max-width:700px}.company-facts dt {font-weight:600}.company-facts dd {margin:0}.principles,.request-panel {border-top:1px solid #cbded2;padding-top:1.5rem;margin-top:2rem}.buy-steps {list-style:none;padding:0;max-width:760px}.buy-steps li {padding:1.2rem 0;border-bottom:1px solid #d6e3db}.buy-steps h2 {font-size:1.25rem}
+.request-example {padding:1rem 1.3rem;background:#f0f7f2;border-left:3px solid #007536;margin:1.2rem 0;max-width:600px}.request-example p {margin-top:.5rem;font-size:.9rem}.request-grid {display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem}fieldset {border:0;min-width:0}legend {font-size:1.15rem;font-weight:600;margin:1rem 0}.form-group label {font-size:.9rem;color:#253e2e}.form-group input,.form-group select,.form-group textarea {width:100%;font:inherit;font-size:1rem;padding:.65rem;border:1px solid #81968a;border-radius:4px;background:white;color:#1a1a1a}.form-note {font-size:.875rem;margin-top:1rem}#request-form {max-width:780px}.ea-vehicle-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem;margin:2rem 0}.empty-state {grid-column:1/-1;background:#f0f7f2;padding:1.5rem}.vehicle-card {padding:2.4rem 1.2rem 1.2rem;box-shadow:none;border:1px solid #cfddd4}.vehicle-card img {aspect-ratio:4/3;object-fit:contain;border-radius:0;margin-bottom:1rem}.vehicle-card h2 {font-size:1.35rem}.price-lines {margin:1rem 0}.price-lines p {margin:.25rem 0}.detail-gallery {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.detail-gallery img {width:100%;aspect-ratio:4/3;object-fit:contain;border-radius:0}.specs {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.specs div {padding:.5rem 0;border-bottom:1px solid #d6e3db}.specs dt {font-size:.875rem;color:#505b54}.specs dd {font-weight:600}.reference-label {font-size:.875rem;font-weight:600;color:#005a2b}
+@media(max-width:1050px){.navbar .container {flex-wrap:wrap;padding-top:.7rem;padding-bottom:.7rem}.navbar-toggle {display:flex;min-width:44px;min-height:44px;justify-content:center;align-items:center;margin-left:auto}.navbar-menu {display:none;position:static;width:100%;height:auto;order:4;background:transparent}.navbar-menu.open {display:flex;flex-direction:column}.navbar-menu a {padding:.65rem 0;min-height:44px}.header-cta {margin-left:0}.service-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.container {padding-left:20px;padding-right:20px}.ea-hero {padding:1.8rem 0}.ea-hero h1 {font-size:2rem}.ea-hero h1 br {display:none}.hero-lead {font-size:1.2rem}.hero-description {font-size:1rem}.ea-section {padding:2rem 0}.header-cta {width:100%;text-align:center}.service-grid,.request-grid,.ea-vehicle-grid,.detail-gallery {grid-template-columns:1fr}.company-facts {grid-template-columns:1fr;gap:.25rem}.company-facts dd {margin-bottom:.65rem}.actions {flex-direction:column;align-items:stretch}.ea-footer {flex-direction:column}.service-grid {gap:1.2rem}h1 {font-size:2rem}h2 {font-size:1.6rem}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after {transition:none!important;animation:none!important}}
+
+/* South Africa Phase 1 additions */
+.vehicle-card::before {content:none}
+.vehicle-card {padding-top:1.2rem}
+.caution {background:#fffbeb;border-left:3px solid #c9a84c;padding:1rem 1.2rem;margin:1.2rem 0;max-width:760px}
+.caution p {color:#5c4a12;margin:.4rem 0}
+.caution p:first-child {margin-top:0}
+.caution p:last-child {margin-bottom:0}
+.info-list {max-width:760px;margin:1rem 0 0;padding-left:1.2rem}
+.info-list li {margin-bottom:.45rem;color:var(--text-muted)}
+.sa-type-grid {margin-top:1.5rem}
+.mobile-cta {display:none}
+.no-photo {background:#edf3ef;min-height:140px;display:flex;align-items:center;justify-content:center;padding:1rem;margin-bottom:1rem;font-size:.9rem;color:#505b54}
+.video-note {margin-top:1rem}
+@media(max-width:600px){
+  body {padding-bottom:4.5rem}
+  .mobile-cta {display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1500;gap:.5rem;padding:.6rem .75rem;background:#005a2b;box-shadow:0 -4px 16px rgba(0,0,0,.18)}
+  .mobile-cta .btn {flex:1;min-height:46px;margin:0}
+  .mobile-cta .btn-whatsapp {border-color:#25D366}
+}
