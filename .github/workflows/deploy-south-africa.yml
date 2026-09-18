@@ -45,7 +45,20 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/sa_prepare_key
           chmod 600 ~/.ssh/sa_prepare_key
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          sudo apt-get update
+          sudo apt-get install -y openssh-client
+          : > ~/.ssh/known_hosts
+          ok=0
+          for _ in 1 2 3; do
+            if ssh-keyscan -T 15 -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ok" = 1
+          test -s ~/.ssh/known_hosts
+          ssh -i ~/.ssh/sa_prepare_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$SSH_HOST" 'echo ssh_ok'
 
       - name: Inspect PHP and create sa-admin-data only
         run: |
