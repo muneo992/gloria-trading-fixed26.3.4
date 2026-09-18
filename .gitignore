@@ -1,2 +1,4 @@
 admin/.htpasswd
 admin/password.txt
+gloria-sa-setup-key.txt
+*.token

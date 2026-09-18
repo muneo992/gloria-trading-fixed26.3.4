@@ -62,6 +62,7 @@ for (const v of vehicles) {
 const js = fs.readFileSync(path.join(ROOT, 'js', 'sa.js'), 'utf8');
 if (!js.includes('Example vehicle — not current stock')) throw new Error('sample wording');
 if (!fs.existsSync(path.join(ROOT, 'admin', 'index.php'))) throw new Error('admin missing');
+if (!fs.existsSync(path.join(ROOT, 'lib', 'admin-auth.php'))) throw new Error('admin auth missing');
 if (fs.existsSync(path.join(ROOT, 'admin-password.hash')) || fs.existsSync(path.join(ROOT, 'lib', 'admin-password.hash'))) {
   throw new Error('password hash must not be in the public tree');
 }

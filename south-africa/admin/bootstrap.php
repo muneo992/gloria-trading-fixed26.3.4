@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/lib/vehicle-store.php';
+require_once dirname(__DIR__) . '/lib/admin-auth.php';
 
 const SA_ADMIN_IDLE_TIMEOUT = 1800;
 const SA_ADMIN_ABSOLUTE_TIMEOUT = 28800;
@@ -116,29 +117,6 @@ function sa_verify_same_origin(): void
     }
 }
 
-function sa_admin_password_hash(): string
-{
-    $environment = sa_environment_value('GLORIA_SA_ADMIN_PASSWORD_HASH');
-    if ($environment !== '') {
-        return $environment;
-    }
-    $path = sa_runtime_dir() . '/admin-password.hash';
-    if (!is_readable($path)) {
-        return '';
-    }
-    return trim((string)file_get_contents($path));
-}
-
-function sa_admin_password_is_configured(): bool
-{
-    $hash = sa_admin_password_hash();
-    if ($hash === '') {
-        return false;
-    }
-    $info = password_get_info($hash);
-    return ($info['algoName'] ?? 'unknown') !== 'unknown';
-}
-
 function sa_rate_limit_directory(): string
 {
     return sa_runtime_dir() . '/login-attempts';
@@ -231,12 +209,34 @@ function sa_attempt_login(string $password): void
         throw new RuntimeException('The password is incorrect.');
     }
     sa_clear_login_failures();
+    sa_establish_admin_session();
+}
+
+function sa_establish_admin_session(): void
+{
     session_regenerate_id(true);
     $now = time();
     $_SESSION['sa_admin_logged_in'] = true;
     $_SESSION['sa_admin_login_at'] = $now;
     $_SESSION['sa_admin_last_activity'] = $now;
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+function sa_guarded_bootstrap(string $token, string $password, string $confirm): void
+{
+    $retryAfter = sa_login_retry_after();
+    if ($retryAfter > 0) {
+        throw new RuntimeException('Too many login attempts. Try again later.');
+    }
+    try {
+        sa_attempt_bootstrap($token, $password, $confirm);
+    } catch (Throwable $exception) {
+        sa_record_login_failure();
+        usleep(random_int(250000, 500000));
+        throw $exception;
+    }
+    sa_clear_login_failures();
+    sa_establish_admin_session();
 }
 
 function sa_admin_is_logged_in(): bool
@@ -294,6 +294,6 @@ function sa_take_flash(): ?array
 
 if (PHP_SAPI !== 'cli') {
     sa_admin_require_https();
+    sa_admin_security_headers();
+    sa_admin_start_session();
 }
-sa_admin_security_headers();
-sa_admin_start_session();

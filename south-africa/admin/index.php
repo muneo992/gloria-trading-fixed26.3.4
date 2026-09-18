@@ -13,6 +13,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             sa_attempt_login((string)($_POST['password'] ?? ''));
             sa_redirect('index.php');
         }
+        if ($action === 'bootstrap') {
+            sa_guarded_bootstrap(
+                (string)($_POST['setup_key'] ?? ''),
+                (string)($_POST['password'] ?? ''),
+                (string)($_POST['password_confirm'] ?? '')
+            );
+            sa_redirect('index.php');
+        }
         if ($action === 'logout') {
             if (sa_admin_is_logged_in()) {
                 sa_admin_logout();
@@ -42,23 +50,42 @@ if (!$loggedIn):
   <main class="login-card">
     <p class="eyebrow">Gloria Trading</p>
     <h1>South Africa Admin</h1>
-    <p>Sign in to manage South Africa sample vehicles.</p>
-    <?php if (!$configured): ?>
-      <div class="alert alert-error" role="alert">Authentication is not configured. Place a password hash in the South Africa runtime directory, or set <code>GLORIA_SA_ADMIN_PASSWORD_HASH</code>.</div>
+    <?php if (sa_admin_can_bootstrap()): ?>
+      <p>Create the South Africa administrator password. This form is available only while a server-side setup key exists and no password hash has been stored.</p>
+      <?php if ($loginError !== ''): ?>
+        <div class="alert alert-error" role="alert"><?= sa_h($loginError) ?></div>
+      <?php endif; ?>
+      <form method="post" class="stack" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="<?= sa_h(sa_csrf_token()) ?>">
+        <input type="hidden" name="action" value="bootstrap">
+        <label for="setup_key">Setup key</label>
+        <input id="setup_key" name="setup_key" type="password" autocomplete="off" required autofocus>
+        <label for="new_password">New password</label>
+        <input id="new_password" name="password" type="password" autocomplete="new-password" minlength="12" required>
+        <label for="password_confirm">Confirm password</label>
+        <input id="password_confirm" name="password_confirm" type="password" autocomplete="new-password" minlength="12" required>
+        <p class="field-help">Use at least 12 characters. The setup key is the one-time value from the Initialize South Africa Admin GitHub Actions summary, not the password. After this succeeds, the setup key is deleted and this form is closed.</p>
+        <button type="submit" class="button button-primary">Save password</button>
+      </form>
+    <?php else: ?>
+      <p>Sign in to manage South Africa sample vehicles.</p>
+      <?php if (!$configured): ?>
+        <div class="alert alert-error" role="alert">Authentication is not configured. Initial setup is locked until a setup key is created on the server.</div>
+      <?php endif; ?>
+      <?php if (isset($_GET['expired'])): ?>
+        <div class="alert alert-info" role="status">Your session ended. Please sign in again.</div>
+      <?php endif; ?>
+      <?php if ($loginError !== ''): ?>
+        <div class="alert alert-error" role="alert"><?= sa_h($loginError) ?></div>
+      <?php endif; ?>
+      <form method="post" class="stack">
+        <input type="hidden" name="csrf_token" value="<?= sa_h(sa_csrf_token()) ?>">
+        <input type="hidden" name="action" value="login">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+        <button type="submit" class="button button-primary" <?= $configured ? '' : 'disabled' ?>>Sign in</button>
+      </form>
     <?php endif; ?>
-    <?php if (isset($_GET['expired'])): ?>
-      <div class="alert alert-info" role="status">Your session ended. Please sign in again.</div>
-    <?php endif; ?>
-    <?php if ($loginError !== ''): ?>
-      <div class="alert alert-error" role="alert"><?= sa_h($loginError) ?></div>
-    <?php endif; ?>
-    <form method="post" class="stack">
-      <input type="hidden" name="csrf_token" value="<?= sa_h(sa_csrf_token()) ?>">
-      <input type="hidden" name="action" value="login">
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
-      <button type="submit" class="button button-primary" <?= $configured ? '' : 'disabled' ?>>Sign in</button>
-    </form>
   </main>
 </body>
 </html>

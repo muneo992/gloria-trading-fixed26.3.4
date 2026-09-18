@@ -22,6 +22,9 @@ function fail_with_cleanup(string $message, ?string $pathToRemove = null): void
 }
 
 $password = stream_get_contents(STDIN);
+if (is_string($password)) {
+    $password = rtrim($password, "\r\n");
+}
 if (!is_string($password) || $password === '') {
     fail_with_cleanup('SA admin password input is missing.');
 }

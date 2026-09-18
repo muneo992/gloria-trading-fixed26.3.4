@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/south-africa/lib/vehicle-store.php';
+require_once dirname(__DIR__) . '/south-africa/lib/admin-auth.php';
 
 $temp = sys_get_temp_dir() . '/gloria-sa-admin-test-' . bin2hex(random_bytes(4));
 putenv('GLORIA_SA_DATA_DIR=' . $temp);
@@ -71,6 +72,58 @@ $final = sa_load_vehicle_data(false, false);
 if (sa_find_vehicle($final['data'], 'SA-TEST-001') !== null) {
     fwrite(STDERR, "Delete failed\n");
     exit(1);
+}
+
+$tokenPath = sa_bootstrap_token_path();
+$hashPath = sa_admin_hash_file_path();
+$setupToken = bin2hex(random_bytes(32));
+if (file_put_contents($tokenPath, $setupToken) === false) {
+    fwrite(STDERR, "Bootstrap token write failed\n");
+    exit(1);
+}
+chmod($tokenPath, 0600);
+if (sa_admin_can_bootstrap() !== true) {
+    fwrite(STDERR, "Bootstrap should be available before the hash exists\n");
+    exit(1);
+}
+try {
+    sa_attempt_bootstrap('wrong-token', 'long-enough-password', 'long-enough-password');
+    fwrite(STDERR, "Wrong setup key was accepted\n");
+    exit(1);
+} catch (Throwable $exception) {
+    if (!is_file($tokenPath) || is_file($hashPath)) {
+        fwrite(STDERR, "Failed bootstrap must not consume the token or write a hash\n");
+        exit(1);
+    }
+}
+sa_attempt_bootstrap($setupToken, 'long-enough-password', 'long-enough-password');
+if (is_file($tokenPath)) {
+    fwrite(STDERR, "Bootstrap token was not removed\n");
+    exit(1);
+}
+if (!is_file($hashPath)) {
+    fwrite(STDERR, "Password hash was not created\n");
+    exit(1);
+}
+if ((fileperms($hashPath) & 0777) !== 0600) {
+    fwrite(STDERR, "Password hash mode is not 600\n");
+    exit(1);
+}
+$stored = trim((string)file_get_contents($hashPath));
+$info = password_get_info($stored);
+if (($info['algoName'] ?? 'unknown') === 'unknown' || !password_verify('long-enough-password', $stored)) {
+    fwrite(STDERR, "Stored hash is invalid\n");
+    exit(1);
+}
+if (sa_admin_can_bootstrap()) {
+    fwrite(STDERR, "Bootstrap remained open after success\n");
+    exit(1);
+}
+try {
+    sa_attempt_bootstrap($setupToken, 'another-long-password', 'another-long-password');
+    fwrite(STDERR, "Second bootstrap was accepted\n");
+    exit(1);
+} catch (Throwable $exception) {
 }
 
 $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($temp, FilesystemIterator::SKIP_DOTS));
