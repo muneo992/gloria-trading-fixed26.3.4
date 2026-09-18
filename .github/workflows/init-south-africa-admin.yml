@@ -1,0 +1,213 @@
+name: Initialize South Africa Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type INIT_SA_ADMIN to prepare South Africa admin data and create a one-time setup key'
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/init-south-africa-admin.yml'
+      - 'south-africa/lib/admin-auth.php'
+      - 'south-africa/admin/bootstrap.php'
+      - 'south-africa/admin/index.php'
+      - 'scripts/check-south-africa-admin.php'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-sa-admin-init-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require the South Africa admin branch for a live init
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = INIT_SA_ADMIN
+          test "$GITHUB_REF" = refs/heads/south-africa-admin-v1
+
+      - name: Install PHP CLI
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli
+
+      - name: Lint and test South Africa admin bootstrap
+        run: |
+          set -euo pipefail
+          test ! -f south-africa/admin-password.hash
+          test ! -f south-africa/lib/admin-password.hash
+          test ! -f south-africa/bootstrap.token
+          if grep -qF 'EA_ADMIN_PASSWORD' .github/workflows/init-south-africa-admin.yml; then
+            echo 'This workflow must not use East Africa password secrets.'
+            exit 1
+          fi
+          php -l south-africa/lib/admin-auth.php
+          php -l south-africa/admin/bootstrap.php
+          php -l south-africa/admin/index.php
+          php scripts/check-south-africa-admin.php
+          node scripts/check-south-africa.js
+
+  initialize-sa-admin-bootstrap:
+    needs: validate-sa-admin-init-files
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/south-africa-admin-v1' && inputs.confirm == 'INIT_SA_ADMIN' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: sakura-gloria-south-africa-admin-init
+      cancel-in-progress: false
+    env:
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+      SA_ADMIN_ROOT: /home/gltr/sa-admin-data
+
+    steps:
+      - name: Validate confirmation and required secrets
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_INPUT" = INIT_SA_ADMIN
+          test "$GITHUB_REF" = refs/heads/south-africa-admin-v1
+          test -n "$SSH_HOST"
+          test -n "$SSH_PORT"
+          test -n "$SSH_USER"
+          test -n "$DEPLOY_KEY"
+          test "$SA_ADMIN_ROOT" = /home/gltr/sa-admin-data
+          test "$SA_ADMIN_ROOT" != /home/gltr/ea-admin-data
+          test "$SA_ADMIN_ROOT" != /home/gltr/www/gloria-sa
+          test "$SA_ADMIN_ROOT" != /home/gltr/www/gloria-ea
+
+      - name: Set up SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAKURA_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/sa_admin_init_key
+          chmod 600 ~/.ssh/sa_admin_init_key
+          : > ~/.ssh/known_hosts
+          ok=0
+          for _ in 1 2 3; do
+            if ssh-keyscan -T 15 -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ok" = 1
+          test -s ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/sa_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -c "echo ssh_ok"'
+
+      - name: Prepare South Africa admin data and refuse if a password hash exists
+        run: |
+          set -euo pipefail
+          ssh -T -i ~/.ssh/sa_admin_init_key -p "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+          umask 077
+
+          DATA='/home/gltr/sa-admin-data'
+          test "$DATA" != '/home/gltr/ea-admin-data'
+          test "$DATA" != '/home/gltr/www/gloria-sa'
+          test "$DATA" != '/home/gltr/www/gloria-ea'
+          test "$DATA" != '/home/gltr/www/gloria-site'
+          if [ -e "$DATA" ] && [ -L "$DATA" ]; then
+            echo "Refusing to use symlink: $DATA"
+            exit 1
+          fi
+          if [ -e "$DATA/admin-password.hash" ]; then
+            echo "HASH_EXISTS"
+            echo "South Africa admin authentication is already configured. Initial setup is refused."
+            exit 1
+          fi
+
+          install -d -m 700 "$DATA"
+          install -d -m 700 "$DATA/backups"
+          install -d -m 700 "$DATA/login-attempts"
+          install -d -m 700 "$DATA/images"
+          for DIR in "$DATA" "$DATA/backups" "$DATA/login-attempts" "$DATA/images"; do
+            test -d "$DIR"
+            test ! -L "$DIR"
+            test "$(cd "$DIR" && pwd -P)" = "$DIR"
+            DIR="$DIR" php -r '$d=getenv("DIR"); if (!is_string($d) || !is_dir($d) || is_link($d)) { fwrite(STDERR, "bad dir\n"); exit(1);} $perm=substr(sprintf("%o", fileperms($d)), -3); $owner=function_exists("posix_getpwuid") ? (posix_getpwuid(fileowner($d))["name"] ?? "") : (string)fileowner($d); echo $d, " owner=", $owner, " perm=", $perm, PHP_EOL; if ($perm !== "700") { fwrite(STDERR, "perm not 700\n"); exit(1);} if (!is_writable($d)) { fwrite(STDERR, "not writable\n"); exit(1); }'
+          done
+          test ! -e "$DATA/admin-password.hash"
+          echo "hash_status=missing"
+          echo "sa_admin_data=ready"
+          REMOTE
+
+      - name: Create a one-time setup key on the server
+        id: setup_key
+        run: |
+          set -euo pipefail
+          umask 077
+          TOKEN_FILE="${RUNNER_TEMP}/sa-bootstrap.token"
+          rm -f "$TOKEN_FILE"
+          TOKEN_FILE="$TOKEN_FILE" python3 -c 'import secrets, pathlib, os; p=pathlib.Path(os.environ["TOKEN_FILE"]); p.write_text(secrets.token_hex(32), encoding="ascii")'
+          chmod 600 "$TOKEN_FILE"
+          test -s "$TOKEN_FILE"
+          TOKEN_LEN="$(wc -c < "$TOKEN_FILE" | tr -d ' ')"
+          test "$TOKEN_LEN" = 64
+          TOKEN_SHA="$(sha256sum "$TOKEN_FILE" | awk '{print $1}')"
+          test "${#TOKEN_SHA}" = 64
+
+          scp -i ~/.ssh/sa_admin_init_key -P "$SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$TOKEN_FILE" \
+            "$SSH_USER@$SSH_HOST:/home/gltr/sa-admin-data/bootstrap.token"
+
+          REMOTE_SHA="$(
+            ssh -T -i ~/.ssh/sa_admin_init_key -p "$SSH_PORT" \
+              -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "$SSH_USER@$SSH_HOST" 'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          PATH_FILE='/home/gltr/sa-admin-data/bootstrap.token'
+          HASH_FILE='/home/gltr/sa-admin-data/admin-password.hash'
+          test ! -e "$HASH_FILE"
+          test -f "$PATH_FILE"
+          test ! -L "$PATH_FILE"
+          chmod 600 "$PATH_FILE"
+          php -r '$p="/home/gltr/sa-admin-data/bootstrap.token"; if (!is_file($p) || is_link($p)) { fwrite(STDERR, "missing token\n"); exit(1);} $t=trim((string)file_get_contents($p)); $m=fileperms($p) & 0777; if (strlen($t) !== 64 || $m !== 0600) { fwrite(STDERR, "token file invalid\n"); exit(1);} echo hash("sha256", $t), PHP_EOL;'
+          REMOTE
+          )"
+          REMOTE_SHA="$(printf '%s' "$REMOTE_SHA" | tr -d '\r\n[:space:]')"
+          test "$REMOTE_SHA" = "$TOKEN_SHA"
+
+          {
+            echo '## South Africa Admin setup key'
+            echo
+            echo 'Copy this key now. It is not stored in Git. Do not paste the future admin password into GitHub.'
+            echo
+            echo 'After South Africa Admin is deployed, open the admin page, enter this setup key, then enter the new password twice.'
+            echo
+            echo '```'
+            cat "$TOKEN_FILE"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          rm -f "$TOKEN_FILE"
+          echo "bootstrap_token=stored"
+          echo "token_sha_match=ok"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/sa_admin_init_key
