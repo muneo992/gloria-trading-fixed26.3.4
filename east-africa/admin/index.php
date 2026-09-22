@@ -46,6 +46,7 @@ if (!$loggedIn):
     <?php if (!$configured): ?>
       <div class="alert alert-error" role="alert">Authentication is not configured. Complete the server setup described in <code>scripts/EAST_AFRICA_ADMIN_PHASE1.md</code>.</div>
     <?php endif; ?>
+    <p class="field-help">There is no public password reset. If you cannot sign in, an operator can replace only the password hash with GitHub Actions <code>Initialize East Africa Admin Runtime</code> using <code>RESET_EA_ADMIN_PASSWORD</code> after updating the <code>EA_ADMIN_PASSWORD</code> secret. Vehicle data and images are not changed.</p>
     <?php if (isset($_GET['expired'])): ?>
       <div class="alert alert-info" role="status">Your session ended. Please sign in again.</div>
     <?php endif; ?>
@@ -94,6 +95,7 @@ try {
     <strong>East Africa Admin</strong>
   </div>
   <nav aria-label="Admin navigation">
+    <a href="settings.php">Change password</a>
     <a href="../vehicles.html" target="_blank" rel="noopener">View public vehicles</a>
     <form method="post">
       <input type="hidden" name="csrf_token" value="<?= ea_h(ea_csrf_token()) ?>">

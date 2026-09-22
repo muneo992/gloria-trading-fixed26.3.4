@@ -66,6 +66,18 @@ php -r '$h=trim(file_get_contents("/home/gltr/ea-admin-data/admin-password.hash"
 
 The alternative `GLORIA_EA_ADMIN_PASSWORD_HASH` environment variable is supported and takes precedence over the file. Store only a `password_hash()` result, never the plaintext password. Do not reuse the West Africa password file or `GLORIA_ADMIN_PASSWORD`.
 
+## Change password while signed in
+
+Use **Change password** at `/admin/settings.php`. The current password must verify, the new password and confirmation must match, and only a new `password_hash()` result is written to `/home/gltr/ea-admin-data/admin-password.hash`. After a successful change the session ends and the new password is required to sign in again.
+
+If `GLORIA_EA_ADMIN_PASSWORD_HASH` is set on the server, the form cannot change it. After a UI password change, also update the GitHub secret `EA_ADMIN_PASSWORD` to the same new value so a later recovery job does not revert to the old secret.
+
+## Forgotten password (signed out)
+
+Do not add a public reset form or email reset. There is no way to display the current password.
+
+The supported recovery is GitHub Actions **Initialize East Africa Admin Runtime** on `main`, with confirm value `RESET_EA_ADMIN_PASSWORD`. First update repository secret `EA_ADMIN_PASSWORD` to the new password (12+ characters). The job replaces only `admin-password.hash`. It does not modify vehicle JSON, images, or the public site. Do not run `INIT_EA_ADMIN` on an already initialized server.
+
 ## Pre-deployment server checks
 
 After files have been placed on a non-production review location, run:
@@ -79,6 +91,7 @@ php -l /home/gltr/www/gloria-ea/data/vehicle-image.php
 php -l /home/gltr/www/gloria-ea/admin/bootstrap.php
 php -l /home/gltr/www/gloria-ea/admin/index.php
 php -l /home/gltr/www/gloria-ea/admin/edit.php
+php -l /home/gltr/www/gloria-ea/admin/settings.php
 curl --fail --silent --show-error https://ea.gloriatrading.com/data/vehicles.json | php -r '$d=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); if (!isset($d["vehicles"]) || count($d["vehicles"]) < 1) exit(1); echo "Public feed: ok\n";'
 curl --fail --silent --show-error -I https://ea.gloriatrading.com/admin/ | grep -i '^x-robots-tag: noindex, nofollow, noarchive'
 curl --silent --show-error -I http://ea.gloriatrading.com/admin/ | grep -i '^location: https://ea.gloriatrading.com/admin/'

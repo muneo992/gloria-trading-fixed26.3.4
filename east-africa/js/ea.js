@@ -66,6 +66,12 @@ function photo(src,alt) {
   image.addEventListener('error',()=>image.replaceWith(element('p','Photo unavailable. Request current photos.')));
   return image;
 }
+function availabilityLabel(v, detail) {
+  if (v && v.availability === 'in_stock') {
+    return detail ? `In stock · ${v.ref_id}` : 'In stock';
+  }
+  return detail ? `Reference vehicle ${v.ref_id} · Not in stock` : 'Reference vehicle · Not in stock';
+}
 function prices(v) {
   const block=element('div',undefined,'price-lines');
   block.append(element('p',`FOB Japan: ${price(v.reference_price_usd)}`));
@@ -91,7 +97,7 @@ if(grid || detail) {
       vehicles.forEach(v=>{
         const card=element('article',undefined,'vehicle-card');
         const img=photo((v.gallery||[])[0],title(v)); if(img) card.append(img);
-        card.append(element('p','Reference vehicle · Not in stock','reference-label'),element('h2',title(v)),element('p',[v.year,v.fuel_type,v.transmission].filter(Boolean).join(' | ')),element('p',`Mileage: ${mileage(v)}`),prices(v),link('View Details',`vehicle-detail.html?ref=${encodeURIComponent(v.ref_id)}`));
+        card.append(element('p',availabilityLabel(v,false),'reference-label'),element('h2',title(v)),element('p',[v.year,v.fuel_type,v.transmission].filter(Boolean).join(' | ')),element('p',`Mileage: ${mileage(v)}`),prices(v),link('View Details',`vehicle-detail.html?ref=${encodeURIComponent(v.ref_id)}`));
         grid.append(card);
       });
     }
@@ -105,7 +111,7 @@ if(grid || detail) {
       document.querySelector('meta[property="og:url"]').content=url;
       document.querySelector('meta[property="og:title"]').content=document.title;
       document.querySelector('h1').textContent=title(v);
-      detail.replaceChildren(element('p',`Reference vehicle ${v.ref_id} · Not in stock`,'reference-label'));
+      detail.replaceChildren(element('p',availabilityLabel(v,true),'reference-label'));
       const gallery=element('div',undefined,'detail-gallery');
       (v.gallery||[]).forEach(src=>{const img=photo(src,title(v));if(img)gallery.append(img);});
       detail.append(gallery);

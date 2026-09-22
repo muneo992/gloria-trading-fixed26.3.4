@@ -7,6 +7,7 @@ const EA_ADMIN_IDLE_TIMEOUT = 1800;
 const EA_ADMIN_ABSOLUTE_TIMEOUT = 28800;
 const EA_LOGIN_WINDOW = 900;
 const EA_LOGIN_MAX_FAILURES = 5;
+const EA_ADMIN_PASSWORD_MIN_LENGTH = 12;
 
 function ea_admin_request_is_https(): bool
 {
@@ -111,14 +112,24 @@ function ea_verify_same_origin(): void
     }
 }
 
+function ea_admin_hash_file_path(): string
+{
+    return ea_runtime_dir() . '/admin-password.hash';
+}
+
+function ea_admin_password_uses_environment(): bool
+{
+    return ea_environment_value('GLORIA_EA_ADMIN_PASSWORD_HASH') !== '';
+}
+
 function ea_admin_password_hash(): string
 {
     $environment = ea_environment_value('GLORIA_EA_ADMIN_PASSWORD_HASH');
     if ($environment !== '') {
         return $environment;
     }
-    $path = ea_runtime_dir() . '/admin-password.hash';
-    if (!is_readable($path)) {
+    $path = ea_admin_hash_file_path();
+    if (!is_readable($path) || is_link($path)) {
         return '';
     }
     return trim((string)file_get_contents($path));
@@ -232,6 +243,88 @@ function ea_attempt_login(string $password): void
     $_SESSION['ea_admin_login_at'] = $now;
     $_SESSION['ea_admin_last_activity'] = $now;
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+function ea_change_admin_password(string $current, string $new, string $confirm): void
+{
+    if (ea_admin_password_uses_environment()) {
+        throw new RuntimeException('This password is set by a server environment variable and cannot be changed here.');
+    }
+    if (!ea_admin_password_is_configured()) {
+        throw new RuntimeException('East Africa admin authentication is not configured.');
+    }
+    $hash = ea_admin_password_hash();
+    if ($hash === '' || !password_verify($current, $hash)) {
+        usleep(random_int(250000, 500000));
+        throw new RuntimeException('The current password is incorrect.');
+    }
+    if (!hash_equals($new, $confirm)) {
+        throw new RuntimeException('The new password confirmation does not match.');
+    }
+    if (strlen($new) < EA_ADMIN_PASSWORD_MIN_LENGTH) {
+        throw new RuntimeException('The new password must be at least ' . EA_ADMIN_PASSWORD_MIN_LENGTH . ' characters.');
+    }
+    if (hash_equals($current, $new)) {
+        throw new RuntimeException('The new password must be different from the current password.');
+    }
+
+    $path = ea_admin_hash_file_path();
+    if (!is_file($path) || is_link($path)) {
+        throw new RuntimeException('The password could not be stored.');
+    }
+
+    $newHash = password_hash($new, PASSWORD_DEFAULT);
+    if (!is_string($newHash) || $newHash === '') {
+        throw new RuntimeException('The password could not be stored.');
+    }
+    $info = password_get_info($newHash);
+    if (($info['algoName'] ?? 'unknown') === 'unknown') {
+        throw new RuntimeException('The password could not be stored.');
+    }
+
+    ea_ensure_runtime_directories();
+    $temporary = ea_runtime_dir() . '/.admin-password-' . bin2hex(random_bytes(8)) . '.tmp';
+    $handle = @fopen($temporary, 'x');
+    if ($handle === false) {
+        throw new RuntimeException('The password could not be stored.');
+    }
+    try {
+        ea_write_all($handle, $newHash);
+        if (!fclose($handle)) {
+            throw new RuntimeException('The password could not be stored.');
+        }
+        $handle = null;
+        if (!chmod($temporary, 0600)) {
+            throw new RuntimeException('The password could not be stored.');
+        }
+        clearstatcache(true, $temporary);
+        $stored = file_get_contents($temporary);
+        $mode = fileperms($temporary);
+        if (!is_string($stored) || $stored !== $newHash) {
+            throw new RuntimeException('The password could not be stored.');
+        }
+        if (DIRECTORY_SEPARATOR === '/' && (!is_int($mode) || (($mode & 0777) !== 0600))) {
+            throw new RuntimeException('The password could not be stored.');
+        }
+        if (!password_verify($new, $stored)) {
+            throw new RuntimeException('The password could not be stored.');
+        }
+        if (!rename($temporary, $path)) {
+            throw new RuntimeException('The password could not be stored.');
+        }
+        @chmod($path, 0600);
+        clearstatcache(true, $path);
+        $final = file_get_contents($path);
+        if (!is_string($final) || !password_verify($new, $final) || password_verify($current, $final)) {
+            throw new RuntimeException('The password could not be stored.');
+        }
+    } catch (Throwable $exception) {
+        if (is_resource($handle)) {
+            fclose($handle);
+        }
+        @unlink($temporary);
+        throw $exception;
+    }
 }
 
 function ea_admin_is_logged_in(): bool

@@ -157,6 +157,12 @@ function ea_validate_vehicle_record(array $vehicle, bool $checkImages = true): v
             throw new EaValidationException($field . ' must be a string of 150 characters or fewer.');
         }
     }
+    if (array_key_exists('availability', $vehicle)) {
+        $availability = $vehicle['availability'];
+        if (!is_string($availability) || !in_array($availability, ['not_in_stock', 'in_stock'], true)) {
+            throw new EaValidationException('Availability must be not_in_stock or in_stock.');
+        }
+    }
     foreach (['mileage_km', 'engine_cc'] as $field) {
         if (array_key_exists($field, $vehicle) && (!is_int($vehicle[$field]) || $vehicle[$field] < 0)) {
             throw new EaValidationException($field . ' must be a non-negative integer.');
@@ -262,6 +268,14 @@ function ea_build_vehicle_record(array $existing, array $input, array $gallery):
     foreach (['display_name_en', 'grade', 'fuel_type', 'transmission', 'drive', 'steering', 'auction_grade'] as $field) {
         ea_assign_optional_string($record, $field, $input[$field] ?? '', 150);
     }
+    $availability = trim((string)($input['availability'] ?? ''));
+    if ($availability === '') {
+        $availability = (string)($existing['availability'] ?? 'not_in_stock');
+    }
+    if (!in_array($availability, ['not_in_stock', 'in_stock'], true)) {
+        throw new EaValidationException('Availability must be not_in_stock or in_stock.');
+    }
+    $record['availability'] = $availability;
     foreach (['mileage_km', 'engine_cc'] as $field) {
         $value = trim((string)($input[$field] ?? ''));
         if ($value === '') {
@@ -610,21 +624,39 @@ function ea_gallery_from_order(string $orderJson, array $existingGallery, array 
         $tokens = array_merge($tokens, array_keys($newMap));
     }
     $expected = $oldMap + $newMap;
-    if (count($tokens) !== count($expected) || count(array_unique($tokens, SORT_STRING)) !== count($tokens)) {
-        throw new EaValidationException('Gallery images cannot be removed or duplicated in Phase 1.');
+    if (count(array_unique($tokens, SORT_STRING)) !== count($tokens)) {
+        throw new EaValidationException('Gallery contains a duplicate image.');
     }
     $gallery = [];
+    $used = [];
     foreach ($tokens as $token) {
         if (!is_string($token) || !array_key_exists($token, $expected)) {
             throw new EaValidationException('Gallery order contains an unknown image.');
         }
+        $used[$token] = true;
         $gallery[] = $expected[$token];
-        unset($expected[$token]);
     }
-    if ($expected !== []) {
-        throw new EaValidationException('Gallery order is missing an image.');
+    foreach (array_keys($newMap) as $newToken) {
+        if (!isset($used[$newToken])) {
+            throw new EaValidationException('Newly uploaded images must stay in this vehicle gallery.');
+        }
     }
     return $gallery;
+}
+
+function ea_detached_gallery_paths(array $previousGallery, array $newGallery): array
+{
+    return array_values(array_diff($previousGallery, $newGallery));
+}
+
+function ea_assert_gallery_belongs_to_ref(array $paths, string $ref): void
+{
+    foreach ($paths as $path) {
+        if (!is_string($path)) {
+            throw new EaValidationException('Gallery path is invalid.');
+        }
+        ea_validate_gallery_path($path, $ref, false);
+    }
 }
 
 function ea_remove_created_images(array $paths): void

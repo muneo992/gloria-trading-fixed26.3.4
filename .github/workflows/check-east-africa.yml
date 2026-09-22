@@ -1,0 +1,46 @@
+name: Check East Africa
+
+on:
+  pull_request:
+    paths:
+      - 'east-africa/**'
+      - 'scripts/check-east-africa.py'
+      - 'scripts/check-east-africa-admin.php'
+      - 'scripts/check-east-africa-admin-concurrency.php'
+      - '.github/workflows/check-east-africa.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'east-africa/**'
+      - 'scripts/check-east-africa.py'
+      - 'scripts/check-east-africa-admin.php'
+      - 'scripts/check-east-africa-admin-concurrency.php'
+      - '.github/workflows/check-east-africa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check-east-africa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PHP CLI
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-xml
+
+      - name: Validate East Africa files
+        run: |
+          set -euo pipefail
+          node --check east-africa/js/ea.js
+          node --check east-africa/admin/assets/admin.js
+          python3 scripts/check-east-africa.py
+          php scripts/check-east-africa-admin.php
+          php scripts/check-east-africa-admin-concurrency.php
+          find east-africa -name '*.php' -print0 | sort -z | xargs -0 -n1 php -l
