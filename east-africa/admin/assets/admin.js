@@ -3,6 +3,23 @@
 const gallery = document.getElementById('gallery-list');
 const orderField = document.getElementById('gallery-order');
 const fileInput = document.getElementById('new_images');
+const removalConfirm = document.getElementById('photo-removal-confirm');
+
+function remainingExistingCount() {
+  if (!gallery) return 0;
+  return gallery.querySelectorAll('.gallery-admin-item:not(.new-photo)').length;
+}
+
+function updateRemovalConfirm() {
+  if (!gallery || !removalConfirm) return;
+  const initial = Number(gallery.dataset.initialCount || 0);
+  const removed = remainingExistingCount() < initial;
+  removalConfirm.hidden = !removed;
+  if (!removed) {
+    const checkbox = removalConfirm.querySelector('input[type="checkbox"]');
+    if (checkbox) checkbox.checked = false;
+  }
+}
 
 function updateGalleryOrder() {
   if (!gallery || !orderField) return;
@@ -16,6 +33,7 @@ function updateGalleryOrder() {
     if (up) up.disabled = index === 0;
     if (down) down.disabled = index === items.length - 1;
   });
+  updateRemovalConfirm();
 }
 
 function moveItem(event) {
@@ -28,6 +46,13 @@ function moveItem(event) {
   }
   if (button.classList.contains('move-down') && item.nextElementSibling) {
     gallery.insertBefore(item.nextElementSibling, item);
+  }
+  if (button.classList.contains('remove-photo')) {
+    const name = (item.querySelector('span') && item.querySelector('span').textContent) || 'this photo';
+    if (!window.confirm('Remove ' + name + ' from this vehicle only? Other vehicles are not affected. You must confirm and save to apply this.')) {
+      return;
+    }
+    item.remove();
   }
   updateGalleryOrder();
 }

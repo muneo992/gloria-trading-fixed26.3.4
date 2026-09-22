@@ -44,6 +44,7 @@ $form = $existing + [
     'reference_price_usd' => null,
     'estimated_cif_mombasa_usd' => null,
     'price_as_of' => '',
+    'availability' => 'not_in_stock',
     'gallery' => [],
 ];
 
@@ -71,8 +72,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $loaded !== null) {
         $createdImages = ea_store_uploaded_images($_FILES['new_images'] ?? [], $postRef);
         $currentGallery = array_values($existing['gallery'] ?? []);
         $gallery = ea_gallery_from_order((string)($_POST['gallery_order'] ?? '[]'), $currentGallery, $createdImages);
+        ea_assert_gallery_belongs_to_ref($gallery, $postRef);
+        $detached = ea_detached_gallery_paths($currentGallery, $gallery);
+        ea_assert_gallery_belongs_to_ref($detached, $postRef);
+        if ($detached !== [] && (string)($_POST['confirm_photo_removal'] ?? '') !== '1') {
+            throw new EaValidationException('Confirm photo removal before saving. Photos from other vehicles are never changed.');
+        }
         $record = ea_build_vehicle_record($existing, $_POST, $gallery);
         ea_save_vehicle_record($record, $originalRef, $expectedVersion);
+        ea_remove_created_images($detached);
         ea_flash('success', ($isEdit ? 'Vehicle updated: ' : 'Vehicle added: ') . $record['ref_id']);
         ea_redirect('index.php');
     } catch (Throwable $exception) {
@@ -107,6 +115,7 @@ $galleryTokens = array_map(static fn(string $path): string => 'old:' . $path, $g
   </div>
   <nav aria-label="Admin navigation">
     <a href="index.php">Vehicle list</a>
+    <a href="settings.php">Change password</a>
     <a href="../vehicles.html" target="_blank" rel="noopener">View public vehicles</a>
   </nav>
 </header>
@@ -114,7 +123,7 @@ $galleryTokens = array_map(static fn(string $path): string => 'old:' . $path, $g
   <div class="page-heading">
     <div>
       <h1><?= $isEdit ? 'Edit vehicle' : 'Add vehicle' ?></h1>
-      <p>Public behavior remains “Reference vehicle · Not in stock”.</p>
+      <p>Saving updates the East Africa vehicle list and Vehicle Detail pages. Existing photos stay unless you remove them and confirm.</p>
     </div>
     <a class="button button-secondary" href="index.php">Cancel</a>
   </div>
@@ -172,6 +181,13 @@ $galleryTokens = array_map(static fn(string $path): string => 'old:' . $path, $g
         <div class="field"><label for="drive">Drive</label><input id="drive" name="drive" value="<?= ea_h($form['drive']) ?>" maxlength="150" placeholder="2WD or 4WD"></div>
         <div class="field"><label for="steering">Steering</label><input id="steering" name="steering" value="<?= ea_h($form['steering']) ?>" maxlength="150" placeholder="Right hand drive"></div>
         <div class="field"><label for="auction_grade">Auction grade</label><input id="auction_grade" name="auction_grade" value="<?= ea_h($form['auction_grade']) ?>" maxlength="150"></div>
+        <div class="field">
+          <label for="availability">Reference vehicle / In stock status</label>
+          <select id="availability" name="availability">
+            <option value="not_in_stock" <?= (($form['availability'] ?? 'not_in_stock') === 'in_stock') ? '' : 'selected' ?>>Reference vehicle · Not in stock</option>
+            <option value="in_stock" <?= (($form['availability'] ?? '') === 'in_stock') ? 'selected' : '' ?>>In stock</option>
+          </select>
+        </div>
       </div>
     </section>
 
@@ -186,25 +202,36 @@ $galleryTokens = array_map(static fn(string $path): string => 'old:' . $path, $g
 
     <section class="form-card">
       <div class="card-heading">
-        <div><h2>Vehicle photos</h2><p>The first photo is used as the list image. Phase 1 does not delete image files.</p></div>
+        <div><h2>Vehicle photos</h2><p>The first photo is used as the list image. Removing a photo affects only this vehicle after you confirm and save.</p></div>
       </div>
-      <div id="gallery-list" class="gallery-admin" aria-live="polite">
+      <div id="gallery-list" class="gallery-admin" data-initial-count="<?= count($gallery) ?>" aria-live="polite">
         <?php foreach ($gallery as $index => $path): ?>
           <article class="gallery-admin-item" data-token="old:<?= ea_h($path) ?>">
             <img src="../<?= ea_h($path) ?>" alt="">
             <div><strong class="gallery-position"><?= $index === 0 ? 'Main photo' : 'Photo ' . ($index + 1) ?></strong><span><?= ea_h(basename($path)) ?></span></div>
-            <div class="gallery-actions"><button class="button button-small button-secondary move-up" type="button">Move up</button><button class="button button-small button-secondary move-down" type="button">Move down</button></div>
+            <div class="gallery-actions">
+              <button class="button button-small button-secondary move-up" type="button">Move up</button>
+              <button class="button button-small button-secondary move-down" type="button">Move down</button>
+              <button class="button button-small button-danger remove-photo" type="button">Remove</button>
+            </div>
           </article>
         <?php endforeach; ?>
       </div>
       <div class="field upload-field">
         <label for="new_images">Add photos</label>
         <input id="new_images" name="new_images[]" type="file" accept="image/jpeg,image/png,image/webp" multiple>
-        <p class="field-help">JPEG, PNG, or WebP. Maximum 20 files, 10 MiB each, 40 MiB total.</p>
+        <p class="field-help">JPEG, PNG, or WebP. Maximum 20 files, 10 MiB each, 40 MiB total. Existing photos stay unless you remove them.</p>
+      </div>
+      <input type="hidden" name="confirm_photo_removal" value="0">
+      <div id="photo-removal-confirm" class="confirm-box" hidden>
+        <label class="confirm-label">
+          <input id="confirm_photo_removal" name="confirm_photo_removal" type="checkbox" value="1">
+          I confirm removing the selected photos from this vehicle only. Photos belonging to other vehicles are not deleted.
+        </label>
       </div>
     </section>
 
-    <div class="form-actions"><a class="button button-secondary" href="index.php">Cancel</a><button class="button button-primary" type="submit">Save vehicle</button></div>
+    <div class="form-actions"><a class="button button-secondary" href="index.php">Cancel</a><button class="button button-primary" type="submit">Save Changes</button></div>
   </form>
   <?php endif; ?>
 </main>
