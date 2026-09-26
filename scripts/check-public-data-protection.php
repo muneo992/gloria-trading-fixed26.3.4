@@ -74,7 +74,30 @@ check(
         < strpos($rootHtaccess, '^data/(.*)$ frontend/data/$1 [L]'),
     'Canonical public feed rewrite must precede the generic data rewrite.'
 );
-check(is_string($dataHtaccess) && str_contains($dataHtaccess, '^vehicles\\.json$ - [F,END,NC]'), 'Data-directory master denial is missing.');
+check(
+    is_string($dataHtaccess)
+    && str_contains($dataHtaccess, 'RewriteCond %{THE_REQUEST} \\s/+[^?\\s]*frontend/data/vehicles\\.json(?:[?\\s]) [NC]')
+    && str_contains($dataHtaccess, '^vehicles\\.json$ - [F,END,NC]'),
+    'Direct frontend master requests must be denied using the original request URI.'
+);
+check(
+    str_contains($dataHtaccess, '^vehicles\\.json$ vehicle-feed.php [END,NC]'),
+    'Symlinked canonical vehicle requests must fall back to the allowlisted feed.'
+);
+check(
+    strpos($dataHtaccess, 'RewriteCond %{THE_REQUEST}')
+        < strpos($dataHtaccess, '^vehicles\\.json$ vehicle-feed.php [END,NC]'),
+    'The direct-request denial must precede the canonical feed fallback.'
+);
+$directMasterRequestPattern = '#\s/+[^?\s]*frontend/data/vehicles\.json(?:[?\s])#i';
+check(
+    preg_match($directMasterRequestPattern, 'GET /gloria-test/frontend/data/vehicles.json?probe=1 HTTP/1.1') === 1,
+    'The original-request guard must detect a direct frontend master request.'
+);
+check(
+    preg_match($directMasterRequestPattern, 'GET /gloria-test/data/vehicles.json?probe=1 HTTP/1.1') === 0,
+    'The original-request guard must allow the canonical symlinked feed request.'
+);
 check(str_contains($dataHtaccess, '^backup(?:/|$) - [F,END,NC]'), 'Data-directory backup denial is missing.');
 check(
     is_string($netlifyConfig)

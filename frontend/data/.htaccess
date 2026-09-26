@@ -1,6 +1,13 @@
 Options -Indexes
 RewriteEngine On
 
-# Defense in depth when frontend/data is exposed directly or via a symlink.
-RewriteRule ^vehicles\.json$ - [F,END,NC]
+# Never expose backups, regardless of the URL used to reach this directory.
 RewriteRule ^backup(?:/|$) - [F,END,NC]
+
+# Deny requests that explicitly target the administrative master path.
+RewriteCond %{THE_REQUEST} \s/+[^?\s]*frontend/data/vehicles\.json(?:[?\s]) [NC]
+RewriteRule ^vehicles\.json$ - [F,END,NC]
+
+# A canonical /data/vehicles.json request may arrive here through Sakura's
+# physical data symlink. Serve the allowlisted feed, never the raw master.
+RewriteRule ^vehicles\.json$ vehicle-feed.php [END,NC]
