@@ -3,8 +3,17 @@ name: Deploy selected ref to Sakura Test (gloria-test)
 on:
   workflow_dispatch:
     inputs:
+      private_data:
+        description: "prepare copies test private data only; deploy syncs code after that check; rollback restores the pre-cutover private master"
+        required: true
+        type: choice
+        default: deploy
+        options:
+          - deploy
+          - prepare
+          - rollback
       confirm:
-        description: "Type DEPLOY_TEST to deploy to gloria-test"
+        description: "DEPLOY_TEST, PREPARE_WA_TEST_PRIVATE, or ROLLBACK_WA_TEST_PRIVATE"
         required: true
         type: string
       deploy_ref:
@@ -12,9 +21,35 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
-  deploy:
+  test-prepare-script:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout workflow ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Install PHP CLI
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli
+
+      - name: Check the test private prepare script
+        run: bash scripts/check-prepare-west-africa-test-private.sh
+
+  deploy:
+    needs: test-prepare-script
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: sakura-gloria-test-deploy
+      cancel-in-progress: false
     env:
       EXPECTED_SAKURA_TEST_PATH: /home/gltr/www/gloria-test
       SAKURA_TEST_PATH: ${{ secrets.SAKURA_TEST_PATH }}
@@ -27,12 +62,17 @@ jobs:
       - name: Validate confirmation
         env:
           CONFIRM_INPUT: ${{ inputs.confirm }}
+          PRIVATE_DATA: ${{ inputs.private_data }}
         run: |
           set -euo pipefail
-          if [ "$CONFIRM_INPUT" != "DEPLOY_TEST" ]; then
-            echo "Confirmation text did not match DEPLOY_TEST. Deployment stopped."
-            exit 1
-          fi
+          case "${PRIVATE_DATA}:${CONFIRM_INPUT}" in
+            deploy:DEPLOY_TEST|prepare:PREPARE_WA_TEST_PRIVATE|rollback:ROLLBACK_WA_TEST_PRIVATE)
+              ;;
+            *)
+              echo "Confirmation text did not match the selected private_data action. Stopped."
+              exit 1
+              ;;
+          esac
 
       - name: Checkout requested ref
         uses: actions/checkout@v4
@@ -78,6 +118,13 @@ jobs:
             exit 1
           fi
 
+      - name: Checkout the private prepare script from this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: wa-workflow
+          fetch-depth: 1
+
       - name: Setup SSH key and known hosts
         run: |
           set -euo pipefail
@@ -86,7 +133,32 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
+      - name: Prepare, check, or roll back West Africa test private data
+        env:
+          PRIVATE_DATA: ${{ inputs.private_data }}
+        run: |
+          set -euo pipefail
+          set +x
+          case "$PRIVATE_DATA" in
+            prepare) MODE=prepare ;;
+            rollback) MODE=rollback ;;
+            deploy) MODE=check ;;
+            *)
+              echo "private_data_invalid"
+              exit 1
+              ;;
+          esac
+          ssh -T \
+            -i ~/.ssh/id_rsa \
+            -p "$SSH_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "bash --noprofile --norc -se -- ${MODE} /home/gltr/www/gloria-test /home/gltr/private/west-africa-test" \
+            < wa-workflow/scripts/prepare-west-africa-test-private.sh
+
       - name: Backup current Sakura test files
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           ssh \
@@ -132,11 +204,13 @@ jobs:
           REMOTE
 
       - name: Deploy selected ref to Sakura test
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           rsync -avz \
             --exclude='.git*' \
             --exclude='.github' \
+            --exclude='/wa-workflow/' \
             --exclude='admin/.htpasswd' \
             --exclude='admin/password.txt' \
             --exclude='/frontend/data/vehicles.json' \
@@ -149,6 +223,7 @@ jobs:
             "$SSH_USER@$SSH_HOST:$SAKURA_TEST_PATH/"
 
       - name: Publish root symlinks for Sakura
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           ssh \
@@ -159,6 +234,7 @@ jobs:
             "set -euo pipefail; WEB='/home/gltr/www/gloria-test'; PRIV='/home/gltr/private/west-africa-test'; case \"\$PRIV\" in \"\$WEB\"|\"\$WEB\"/*) echo 'Private data directory is inside the web root.'; exit 1 ;; esac; if [ -e \"\$WEB/private\" ]; then echo 'Web root contains a private directory.'; exit 1; fi; bash '$SAKURA_TEST_PATH/scripts/sakura-publish-links.sh' '$SAKURA_TEST_PATH'"
 
       - name: Validate deployed PHP syntax
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           ssh \
@@ -169,6 +245,7 @@ jobs:
             "set -e; php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'; php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'"
 
       - name: Smoke test gloria-test site
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           sleep 3
