@@ -15,6 +15,12 @@ RewriteRule ^frontend/sitemap\.xml$ /sitemap.xml [R=301,L]
 # admin はそのまま
 RewriteRule ^admin(/|$) - [L]
 
+# Public vehicle feed. The administrative JSON master and its backups must
+# never be served as static files, including through the frontend/ path.
+RewriteRule ^data/vehicles\.json$ frontend/data/vehicle-feed.php [L,NC]
+RewriteRule ^frontend/data/vehicles\.json$ - [F,L,NC]
+RewriteRule ^(?:frontend/)?data/backup(?:/|$) - [F,L,NC]
+
 # 旧国別ページ → 新URL（301）
 RewriteCond %{REQUEST_URI} ^/gloria-test(/|$) [NC]
 RewriteRule ^ghana\.html$ /gloria-test/west-africa/ghana [R=301,L,NC]

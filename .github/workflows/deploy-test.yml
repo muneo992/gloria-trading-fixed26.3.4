@@ -134,7 +134,7 @@ jobs:
             --exclude='admin/password.txt' \
             --exclude='/frontend/data/vehicles.json' \
             --exclude='/vehicles.json' \
-            --exclude='/frontend/data/backup/'
+            --exclude='/frontend/data/backup/' \
             --exclude='/east-africa/' \
             --exclude='/south-africa/' \
             -e "ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=yes" \
@@ -159,7 +159,7 @@ jobs:
             -p "$SSH_PORT" \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            "php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'"
+            "set -e; php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'; php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'"
 
       - name: Smoke test gloria-test site
         run: |
@@ -174,4 +174,3 @@ jobs:
           curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/benin.html" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/benin"
           curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/ivory-coast.html" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/cote-divoire"
           curl -sI --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/west-africa/ivory-coast" | grep -i "^Location:" | grep -q "/gloria-test/west-africa/cote-divoire"
-          curl -s --fail --max-time 20 "https://gltr.sakura.ne.jp/gloria-test/admin/index.php?diag=1" | grep -q "status: ok"
