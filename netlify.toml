@@ -1,5 +1,6 @@
 [build]
   publish = "frontend"
+  command = "node scripts/build-netlify-public-data.js"
 
 [[headers]]
   for = "/*"
@@ -22,14 +23,6 @@
   for = "/images/vehicles/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"
-
-# The administrative master is not a public static asset. Netlify cannot run
-# the PHP allowlist feed, so proxy the stable public URL on Sakura instead.
-[[redirects]]
-  from = "/data/vehicles.json"
-  to = "https://www.gloriatrading.com/data/vehicles.json"
-  status = 200
-  force = true
 
 # West Africa マーケット（クリーンURL）
 [[redirects]]

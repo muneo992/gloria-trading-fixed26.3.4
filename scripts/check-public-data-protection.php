@@ -72,10 +72,8 @@ check(is_string($dataHtaccess) && str_contains($dataHtaccess, '^vehicles\\.json$
 check(str_contains($dataHtaccess, '^backup(?:/|$) - [F,L,NC]'), 'Data-directory backup denial is missing.');
 check(
     is_string($netlifyConfig)
-    && str_contains($netlifyConfig, 'from = "/data/vehicles.json"')
-    && str_contains($netlifyConfig, 'to = "https://www.gloriatrading.com/data/vehicles.json"')
-    && str_contains($netlifyConfig, 'force = true'),
-    'Netlify must not serve the administrative master as a static asset.'
+    && str_contains($netlifyConfig, 'command = "node scripts/build-netlify-public-data.js"'),
+    'Netlify must sanitize the administrative master before publishing.'
 );
 check(
     is_string($productionWorkflow)
