@@ -1,5 +1,8 @@
 <?php
 if (isset($_GET['diag'])) {
+    // #region agent log
+    @file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'D', 'location' => 'admin/index.php:diag-entry', 'message' => 'Pre-auth diagnostics branch reached', 'data' => ['sapi' => PHP_SAPI, 'session_active' => session_status() === PHP_SESSION_ACTIVE, 'admin_auth_present' => isset($_SESSION) && !empty($_SESSION['admin_logged_in']), 'htaccess_readable' => is_readable(__DIR__ . '/.htaccess')], 'timestamp' => (int) floor(microtime(true) * 1000)]) . "\n", FILE_APPEND | LOCK_EX);
+    // #endregion
     header('Content-Type: text/plain; charset=UTF-8');
     $frontend_dir = dirname(__DIR__) . '/frontend';
     $checks = [

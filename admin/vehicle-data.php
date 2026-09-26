@@ -322,6 +322,9 @@ function gt_document_data_has_saved_user_data(array $doc): bool {
 }
 
 function normalizeVehicleRecord($v) {
+    // #region agent log
+    @file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'A,B', 'location' => 'admin/vehicle-data.php:normalizeVehicleRecord:entry', 'message' => 'Normalize vehicle record', 'data' => ['input_is_array' => is_array($v), 'has_quote_section' => is_array($v) && isset($v['quote_spec_data']), 'has_export_section' => is_array($v) && isset($v['export_document_data']), 'has_certificate_section' => is_array($v) && isset($v['vehicle_certificate_data'])], 'timestamp' => (int) floor(microtime(true) * 1000)]) . "\n", FILE_APPEND | LOCK_EX);
+    // #endregion
     if (!is_array($v)) return [];
 
     $ref = gt_string_value($v['ref_id'] ?? $v['ref'] ?? '');
@@ -365,6 +368,10 @@ function normalizeVehicleRecord($v) {
         'export_document_data' => gt_export_document_data_value($v),
         'vehicle_certificate_data' => gt_vehicle_certificate_data_value($v),
     ];
+
+    // #region agent log
+    @file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'B', 'location' => 'admin/vehicle-data.php:normalizeVehicleRecord:exit', 'message' => 'Normalized record section shape', 'data' => ['top_level_field_count' => count($normalized), 'quote_field_count' => count($normalized['quote_spec_data']), 'export_field_count' => count($normalized['export_document_data']), 'certificate_field_count' => count($normalized['vehicle_certificate_data'])], 'timestamp' => (int) floor(microtime(true) * 1000)]) . "\n", FILE_APPEND | LOCK_EX);
+    // #endregion
 
     if (array_key_exists('resale_markets', $v)) {
         $normalized['resale_markets'] = (string)$v['resale_markets'];
@@ -441,6 +448,9 @@ function saveVehicles($data) {
     }
 
     $normalized = normalizeVehicleData($data);
+    // #region agent log
+    @file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'A,B', 'location' => 'admin/vehicle-data.php:saveVehicles:before-write', 'message' => 'Persist normalized master shape', 'data' => ['record_count' => count($normalized['vehicles']), 'writes_public_feed_path' => defined('FRONTEND_DIR') && VEHICLES_JSON === FRONTEND_DIR . '/data/vehicles.json', 'records_with_quote_section' => count(array_filter($normalized['vehicles'], static fn($record) => isset($record['quote_spec_data']))), 'records_with_export_section' => count(array_filter($normalized['vehicles'], static fn($record) => isset($record['export_document_data']))), 'records_with_certificate_section' => count(array_filter($normalized['vehicles'], static fn($record) => isset($record['vehicle_certificate_data'])))], 'timestamp' => (int) floor(microtime(true) * 1000)]) . "\n", FILE_APPEND | LOCK_EX);
+    // #endregion
     return file_put_contents(
         VEHICLES_JSON,
         json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),

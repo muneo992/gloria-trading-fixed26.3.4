@@ -5,6 +5,10 @@
  */
 require_once __DIR__ . '/bootstrap.php';
 
+// #region agent log
+@file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'D', 'location' => 'admin/health.php:entry', 'message' => 'Health diagnostics reached', 'data' => ['sapi' => PHP_SAPI, 'session_active' => session_status() === PHP_SESSION_ACTIVE, 'admin_auth_present' => isset($_SESSION) && !empty($_SESSION['admin_logged_in'])], 'timestamp' => (int) floor(microtime(true) * 1000)]) . "\n", FILE_APPEND | LOCK_EX);
+// #endregion
+
 header('Content-Type: text/plain; charset=UTF-8');
 
 $frontend_dir = dirname(__DIR__) . '/frontend';
