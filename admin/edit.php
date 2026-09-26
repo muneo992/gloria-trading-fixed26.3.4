@@ -7,34 +7,7 @@ if (empty($_SESSION['admin_logged_in'])) {
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/vehicle-data.php';
-
-
-function gt_safe_filename($name) {
-    $name = basename($name);
-    $name = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name);
-    return $name ?: ('file_' . time());
-}
-
-function gt_save_quote_uploads($field, $ref, $subdir, $allowed_mimes) {
-    $saved = [];
-    if (empty($_FILES[$field]['name'][0])) return $saved;
-    $safe_ref = preg_replace('/[^a-zA-Z0-9\-]/', '', strtolower($ref));
-    $dir = QUOTE_UPLOAD_DIR . $safe_ref . '/' . $subdir . '/';
-    if (!is_dir($dir)) mkdir($dir, 0755, true);
-
-    foreach ($_FILES[$field]['tmp_name'] as $i => $tmp) {
-        if ($_FILES[$field]['error'][$i] !== UPLOAD_ERR_OK) continue;
-        $mime = mime_content_type($tmp);
-        if (!in_array($mime, $allowed_mimes, true)) continue;
-        $original = gt_safe_filename($_FILES[$field]['name'][$i]);
-        $filename = date('YmdHis') . '_' . sprintf('%02d', $i + 1) . '_' . $original;
-        $dest = $dir . $filename;
-        if (move_uploaded_file($tmp, $dest)) {
-            $saved[] = QUOTE_UPLOAD_URL . $safe_ref . '/' . $subdir . '/' . $filename;
-        }
-    }
-    return $saved;
-}
+require_once __DIR__ . '/private-files.php';
 
 
 function gt_lower($value) {
@@ -570,9 +543,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } else {
             $vehicles[] = $new_vehicle;
         }
-        saveVehicles($data);
-        header('Location: index.php?saved=1&mode=' . urlencode($upload_mode));
-        exit;
+        if (saveVehicles($data) === false) {
+            $errors[] = gt_wa_save_unavailable_message();
+        } else {
+            header('Location: index.php?saved=1&mode=' . urlencode($upload_mode));
+            exit;
+        }
     }
     $vehicle = $new_vehicle;
 }
@@ -593,11 +569,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_quote_file') {
         }
     }
     unset($v);
-    saveVehicles($data);
-    $full_path = FRONTEND_DIR . '/' . ltrim($file_path, '/');
-    if (file_exists($full_path)) @unlink($full_path);
-    header('Location: edit.php?ref=' . urlencode($ref_id) . '&quote_file_deleted=1');
-    exit;
+    $private_file = gt_resolve_private_upload((string)$file_path, false);
+    if (saveVehicles($data) === false) {
+        $errors[] = gt_wa_save_unavailable_message();
+    } else {
+        if ($private_file !== null) {
+            @unlink($private_file);
+        }
+        header('Location: edit.php?ref=' . urlencode($ref_id) . '&quote_file_deleted=1');
+        exit;
+    }
 }
 
 // --- 画像削除 ---
@@ -613,12 +594,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_image') {
         }
     }
     unset($v);
-    saveVehicles($data);
-    // ファイル削除
-    $full_path = FRONTEND_DIR . '/' . ltrim($img_path, '/');
-    if (file_exists($full_path)) @unlink($full_path);
-    header('Location: edit.php?ref=' . urlencode($ref_id) . '&img_deleted=1');
-    exit;
+    if (saveVehicles($data) === false) {
+        $errors[] = gt_wa_save_unavailable_message();
+    } else {
+        $full_path = FRONTEND_DIR . '/' . ltrim($img_path, '/');
+        if (file_exists($full_path)) {
+            @unlink($full_path);
+        }
+        header('Location: edit.php?ref=' . urlencode($ref_id) . '&img_deleted=1');
+        exit;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -1021,7 +1006,7 @@ textarea { resize: vertical; min-height: 80px; }
           <h4 style="font-size:0.9rem;margin-bottom:0.5rem;">登録済み車検証ファイル</h4>
           <?php foreach (($vehicle['vehicle_certificate_files'] ?? []) as $file): ?>
           <div style="font-size:0.85rem;margin-bottom:0.4rem;display:flex;gap:0.5rem;align-items:center;">
-            <a href="<?= htmlspecialchars('../' . $file) ?>" target="_blank"><?= htmlspecialchars(basename($file)) ?></a>
+            <a href="<?= htmlspecialchars(gt_private_file_url($file)) ?>" target="_blank"><?= htmlspecialchars(basename($file)) ?></a>
             <?php if ($is_edit): ?><button type="button" class="btn btn-danger" onclick="deleteQuoteFile('<?= htmlspecialchars($file, ENT_QUOTES) ?>','certificate')">削除</button><?php endif; ?>
           </div>
           <?php endforeach; ?>
@@ -1066,7 +1051,7 @@ textarea { resize: vertical; min-height: 80px; }
             <h4 style="font-size:0.9rem;margin-bottom:0.5rem;">登録済みスペック</h4>
             <?php foreach (($vehicle['quote_spec_files'] ?? []) as $file): ?>
             <div style="font-size:0.85rem;margin-bottom:0.4rem;display:flex;gap:0.5rem;align-items:center;">
-              <a href="<?= htmlspecialchars('../' . $file) ?>" target="_blank"><?= htmlspecialchars(basename($file)) ?></a>
+              <a href="<?= htmlspecialchars(gt_private_file_url($file)) ?>" target="_blank"><?= htmlspecialchars(basename($file)) ?></a>
               <?php if ($is_edit): ?><button type="button" class="btn btn-danger" onclick="deleteQuoteFile('<?= htmlspecialchars($file, ENT_QUOTES) ?>','spec')">削除</button><?php endif; ?>
             </div>
             <?php endforeach; ?>
@@ -1076,7 +1061,7 @@ textarea { resize: vertical; min-height: 80px; }
             <div class="gallery-grid">
               <?php foreach (($vehicle['quote_image_files'] ?? []) as $file): ?>
               <div class="gallery-item">
-                <img src="<?= htmlspecialchars('../' . $file) ?>" alt="">
+                <img src="<?= htmlspecialchars(gt_private_file_url($file)) ?>" alt="">
                 <?php if ($is_edit): ?><button type="button" class="del-btn" onclick="deleteQuoteFile('<?= htmlspecialchars($file, ENT_QUOTES) ?>','image')">✕</button><?php endif; ?>
               </div>
               <?php endforeach; ?>

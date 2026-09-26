@@ -6,6 +6,7 @@ if (empty($_SESSION['admin_logged_in'])) {
 }
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/private-files.php';
 
 function gt_safe_filename($name) {
     $name = basename($name);
@@ -13,9 +14,11 @@ function gt_safe_filename($name) {
     return $name ?: ('file_' . time());
 }
 
-if (!is_dir(GENERAL_UPLOAD_DIR)) mkdir(GENERAL_UPLOAD_DIR, 0755, true);
 $messages = [];
 $errors = [];
+if (GENERAL_UPLOAD_DIR !== '' && !is_dir(GENERAL_UPLOAD_DIR) && !gt_wa_mkdir_private(GENERAL_UPLOAD_DIR)) {
+    $errors[] = gt_wa_save_unavailable_message();
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upload') {
     if (empty($_FILES['files']['name'][0])) {
@@ -32,8 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'uploa
             if ($_FILES['files']['error'][$i] !== UPLOAD_ERR_OK) continue;
             $mime = mime_content_type($tmp);
             if (!in_array($mime, $allowed, true)) { $errors[] = $_FILES['files']['name'][$i] . ' は許可されていない形式です。'; continue; }
+            if (GENERAL_UPLOAD_DIR === '' || !is_dir(GENERAL_UPLOAD_DIR)) {
+                $errors[] = gt_wa_save_unavailable_message();
+                break;
+            }
             $filename = date('YmdHis') . '_' . sprintf('%02d', $i + 1) . '_' . gt_safe_filename($_FILES['files']['name'][$i]);
-            if (move_uploaded_file($tmp, GENERAL_UPLOAD_DIR . $filename)) $count++;
+            $dest = GENERAL_UPLOAD_DIR . $filename;
+            if (move_uploaded_file($tmp, $dest)) {
+                @chmod($dest, 0600);
+                $count++;
+            }
         }
         if ($count > 0) $messages[] = $count . '件のファイルをアップロードしました。';
     }
@@ -49,11 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 }
 
 $files = [];
-foreach (glob(GENERAL_UPLOAD_DIR . '*') as $f) {
+$stored_files = GENERAL_UPLOAD_DIR !== '' && is_dir(GENERAL_UPLOAD_DIR) ? (glob(GENERAL_UPLOAD_DIR . '*') ?: []) : [];
+foreach ($stored_files as $f) {
     if (is_file($f)) {
         $files[] = [
             'name' => basename($f),
-            'url' => '../' . GENERAL_UPLOAD_URL . basename($f),
+            'url' => gt_private_file_url('uploads/general/' . basename($f)),
             'size' => filesize($f),
             'mtime' => filemtime($f),
             'mime' => mime_content_type($f),
@@ -90,7 +102,7 @@ usort($files, function ($a, $b) {
     <?php foreach ($files as $f): ?><tr>
       <td><?php if (strpos($f['mime'], 'image/') === 0): ?><img src="<?= htmlspecialchars($f['url']) ?>" class="thumb"><?php else: ?>—<?php endif; ?></td>
       <td><a href="<?= htmlspecialchars($f['url']) ?>" target="_blank"><?= htmlspecialchars($f['name']) ?></a></td>
-      <td class="file-url"><?= htmlspecialchars(str_replace('../', '', $f['url'])) ?></td>
+      <td class="file-url"><?= htmlspecialchars('uploads/general/' . $f['name']) ?></td>
       <td><?= number_format($f['size'] / 1024, 1) ?> KB</td>
       <td><?= date('Y-m-d H:i', $f['mtime']) ?></td>
       <td><form method="post" onsubmit="return confirm('削除しますか？');"><input type="hidden" name="action" value="delete"><input type="hidden" name="name" value="<?= htmlspecialchars($f['name']) ?>"><button class="btn btn-danger" type="submit">削除</button></form></td>

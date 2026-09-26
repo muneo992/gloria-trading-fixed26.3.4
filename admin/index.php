@@ -23,7 +23,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'login') {
     if ($admin_password_configured && hash_equals($admin_password, $posted_password)) {
         $_SESSION['admin_logged_in'] = true;
     } elseif (!$admin_password_configured) {
-        $login_error = '管理画面パスワードが未設定です。サーバー上の admin/password.txt または環境変数 GLORIA_ADMIN_PASSWORD を設定してください。';
+        $login_error = '管理画面パスワードが未設定です。サーバーの私有パスワードファイル、または環境変数 GLORIA_ADMIN_PASSWORD を設定してください。';
     } else {
         $login_error = 'パスワードが違います。';
     }
@@ -66,7 +66,7 @@ button:hover { background: #0052a3; }
   <h1>管理画面</h1>
   <p>車両データ管理システム</p>
   <?php if (!$admin_password_configured): ?>
-  <div class="error">管理画面パスワードが未設定です。サーバー上の <code>admin/password.txt</code> または環境変数 <code>GLORIA_ADMIN_PASSWORD</code> を設定してください。</div>
+  <div class="error">管理画面パスワードが未設定です。サーバーの私有パスワードファイル、または環境変数 <code>GLORIA_ADMIN_PASSWORD</code> を設定してください。</div>
   <?php endif; ?>
   <?php if (!empty($login_error)): ?>
   <div class="error"><?= htmlspecialchars($login_error) ?></div>
@@ -93,7 +93,10 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete') {
     $data['vehicles'] = array_values(array_filter($data['vehicles'], function ($v) use ($ref_id) {
         return ($v['ref_id'] ?? '') !== $ref_id;
     }));
-    saveVehicles($data);
+    if (saveVehicles($data) === false) {
+        header('Location: index.php?save_error=1');
+        exit;
+    }
     header('Location: index.php?deleted=1');
     exit;
 }
@@ -181,6 +184,9 @@ tr:hover td { background: #fafbff; }
   <?php endif; ?>
   <?php if (isset($_GET['saved'])): ?>
   <div class="alert alert-success">✅ 車両データを保存しました。</div>
+  <?php endif; ?>
+  <?php if (isset($_GET['save_error'])): ?>
+  <div class="alert alert-success" style="background:#fff0f0;border-color:#ffcccc;color:#cc0000;">保存できません。業務データの保存先が利用できないため、変更は書き込まれていません。</div>
   <?php endif; ?>
   <?php if (isset($_GET['imported'])): ?>
   <div class="alert alert-success">✅ <?= (int)$_GET['imported'] ?>件の車両データをインポートしました（<?= $_GET['mode'] === 'replace' ? '全置換' : 'マージ' ?>）。</div>

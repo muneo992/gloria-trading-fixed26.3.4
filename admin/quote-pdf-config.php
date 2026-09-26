@@ -2,9 +2,10 @@
 /**
  * PROFORMA INVOICE PDF configuration for Gloria Trading.
  *
- * This file intentionally contains only non-secret company, bank, and document
- * defaults used for customer-facing PDF generation. Sensitive credentials must
- * not be stored here.
+ * Company name, address, phone, and email are already public business details.
+ * Bank account fields printed on invoices are loaded from the private
+ * invoice-bank.php file. This repository copy keeps those fields empty.
+ * Invoice sequence numbers are stored only in the private directory.
  */
 
 return [
@@ -16,13 +17,13 @@ return [
         'email' => 'info@gloriatrading.com',
     ],
     'bank' => [
-        'bank_name' => 'MUFG BANK, LTD',
-        'swift_code' => 'BOTKJPJT',
-        'branch_name' => 'SENDAI BRANCH',
-        'branch_phone' => '+81-22-222-7191',
-        'account_name' => 'GLORIA TRADING MUNEO SATO',
-        'account_number' => '314-0059629',
-        'branch_address' => '2-1, Chuo 2-chome, Aoba-ku, Sendai, Miyagi, 980-0021 Japan',
+        'bank_name' => '',
+        'swift_code' => '',
+        'branch_name' => '',
+        'branch_phone' => '',
+        'account_name' => '',
+        'account_number' => '',
+        'branch_address' => '',
     ],
     'document' => [
         'invoice_prefix' => 'PI',
@@ -36,5 +37,5 @@ return [
         'logo' => dirname(__DIR__) . '/frontend/assets/proforma/company-logo.jpg',
         'stamp' => dirname(__DIR__) . '/frontend/assets/proforma/company-stamp.jpg',
     ],
-    'sequence_file' => dirname(__DIR__) . '/frontend/data/proforma-invoice-sequence.json',
+    'sequence_file' => '',
 ];

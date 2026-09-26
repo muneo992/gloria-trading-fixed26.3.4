@@ -18,7 +18,7 @@ jobs:
     env:
       EXPECTED_SAKURA_TEST_PATH: /home/gltr/www/gloria-test
       SAKURA_TEST_PATH: ${{ secrets.SAKURA_TEST_PATH }}
-      SAKURA_BACKUP_BASE: /home/gltr/www/_backups
+      SAKURA_BACKUP_BASE: /home/gltr/backups/site
       SSH_HOST: ${{ secrets.SAKURA_HOST }}
       SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
       SSH_USER: ${{ secrets.SAKURA_USER }}
@@ -97,7 +97,14 @@ jobs:
             'bash -se' <<'REMOTE'
           set -euo pipefail
           TEST_PATH='/home/gltr/www/gloria-test'
-          BACKUP_BASE='/home/gltr/www/_backups'
+          BACKUP_BASE='/home/gltr/backups/site'
+          PRIVATE_PATH='/home/gltr/private/west-africa-test'
+          case "$PRIVATE_PATH" in
+            "$TEST_PATH"|"$TEST_PATH"/*)
+              echo "Private data directory is inside the web root. Deployment stopped."
+              exit 1
+              ;;
+          esac
           TS="$(date +%Y%m%d-%H%M%S)"
           BACKUP_PATH="$BACKUP_BASE/gloria-test-before-$TS"
 
@@ -149,7 +156,7 @@ jobs:
             -p "$SSH_PORT" \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            "bash '$SAKURA_TEST_PATH/scripts/sakura-publish-links.sh' '$SAKURA_TEST_PATH'"
+            "set -euo pipefail; WEB='/home/gltr/www/gloria-test'; PRIV='/home/gltr/private/west-africa-test'; case \"\$PRIV\" in \"\$WEB\"|\"\$WEB\"/*) echo 'Private data directory is inside the web root.'; exit 1 ;; esac; if [ -e \"\$WEB/private\" ]; then echo 'Web root contains a private directory.'; exit 1; fi; bash '$SAKURA_TEST_PATH/scripts/sakura-publish-links.sh' '$SAKURA_TEST_PATH'"
 
       - name: Validate deployed PHP syntax
         run: |
@@ -188,7 +195,7 @@ jobs:
                     fwrite(STDERR, "Public vehicle feed has no records.\n");
                     exit(1);
                 }
-                $private = ["quote_spec_data", "export_document_data", "vehicle_certificate_data", "quote_spec_files", "quote_image_files", "vehicle_certificate_files"];
+                $private = ["quote_spec_data", "export_document_data", "vehicle_certificate_data", "quote_spec_files", "quote_image_files", "vehicle_certificate_files", "basis_from", "basis_to", "disclaimer_short", "auction_price_jpy", "target_price_usd", "customer_name", "chassis_no"];
                 foreach ($data["vehicles"] as $record) {
                     if (!is_array($record)) {
                         exit(1);
@@ -206,6 +213,11 @@ jobs:
           expect_status 403 "$BASE_URL/frontend/data/vehicles.json"
           expect_status 403 "$BASE_URL/data/backup/probe.json"
           expect_status 403 "$BASE_URL/frontend/data/backup/probe.json"
+          expect_status 403 "$BASE_URL/uploads/quotes/probe.pdf"
+          expect_status 403 "$BASE_URL/uploads/certificates/probe.pdf"
+          expect_status 403 "$BASE_URL/uploads/general/probe.pdf"
+          expect_status 404 "$BASE_URL/private/west-africa-test/vehicles.json"
+          expect_status 404 "https://gltr.sakura.ne.jp/private/west-africa-test/vehicles.json"
           expect_status 404 "$BASE_URL/admin/health.php"
           expect_status 404 "$BASE_URL/admin/index.php?diag=1"
           expect_status 200 "$BASE_URL/admin/"
