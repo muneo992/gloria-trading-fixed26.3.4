@@ -17,6 +17,8 @@ function quote_pdf_config(): array
     static $config = null;
     if ($config === null) {
         $config = require __DIR__ . '/quote-pdf-config.php';
+        $config['bank'] = gt_wa_invoice_bank();
+        $config['sequence_file'] = gt_wa_invoice_sequence_path() ?? '';
     }
     return $config;
 }

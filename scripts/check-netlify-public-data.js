@@ -1,10 +1,12 @@
 'use strict';
 
 const assert = require('assert');
-const { publicVehicleData } = require('./build-netlify-public-data');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { internalFieldNames, publicVehicleData } = require('./build-netlify-public-data');
 
-// Synthetic fixture only. No operational vehicle, customer, or cost data is read.
-const projected = publicVehicleData({
+const internal = internalFieldNames({
   vehicles: [{
     ref_id: 'TEST-001',
     display_name_en: 'Synthetic Vehicle',
@@ -23,19 +25,44 @@ const projected = publicVehicleData({
   }],
 });
 
-assert.strictEqual(projected.vehicles.length, 1);
-assert.strictEqual(projected.vehicles[0].ref_id, 'TEST-001');
-assert.deepStrictEqual(projected.vehicles[0].gallery, ['images/vehicles/synthetic.jpg']);
-
 for (const field of [
   'quote_spec_data',
   'export_document_data',
   'vehicle_certificate_data',
   'quote_spec_files',
-  'quote_image_files',
-  'vehicle_certificate_files',
 ]) {
-  assert.ok(!Object.prototype.hasOwnProperty.call(projected.vehicles[0], field));
+  assert.ok(internal.includes(field), `internal field must fail the build: ${field}`);
 }
+assert.ok(internal.some(name => name.endsWith('.gallery')));
+assert.ok(!internal.join('\n').includes('Synthetic Customer'));
+assert.ok(!internal.join('\n').includes('111'));
+
+const clean = publicVehicleData({
+  vehicles: [{
+    ref_id: 'TEST-001',
+    display_name_en: 'Synthetic Vehicle',
+    reference_price_usd: 12345,
+    gallery: ['images/vehicles/synthetic.jpg'],
+  }],
+});
+assert.deepStrictEqual(internalFieldNames(clean), []);
+assert.strictEqual(clean.vehicles[0].reference_price_usd, 12345);
+
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gloria-netlify-'));
+const inputPath = path.join(directory, 'vehicles.json');
+fs.writeFileSync(inputPath, `${JSON.stringify({
+  vehicles: [{ ref_id: 'TEST-001', quote_spec_data: { auction_price_jpy: 111 } }],
+}, null, 2)}\n`);
+const outputPath = path.join(directory, 'out.json');
+const { spawnSync } = require('child_process');
+const failed = spawnSync(process.execPath, [
+  path.join(__dirname, 'build-netlify-public-data.js'),
+  inputPath,
+  outputPath,
+], { encoding: 'utf8' });
+assert.notStrictEqual(failed.status, 0);
+assert.match(failed.stderr, /internal fields are present: quote_spec_data/);
+assert.ok(!failed.stderr.includes('111'));
+assert.ok(!fs.existsSync(outputPath));
 
 process.stdout.write('Netlify public data protection checks passed.\n');

@@ -56,8 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'assig
             }
         }
         unset($v);
-        saveVehicles($data);
-        $messages[] = '✅ ' . basename($img_path) . ' を ' . $ref_id . ' に割り当てました。';
+        if (saveVehicles($data) === false) {
+            $messages[] = gt_wa_save_unavailable_message();
+        } else {
+            $messages[] = '✅ ' . basename($img_path) . ' を ' . $ref_id . ' に割り当てました。';
+        }
     }
     // 再読み込み
     $data     = loadVehicles();
@@ -84,8 +87,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unass
             }
         }
         unset($v);
-        saveVehicles($data);
-        $messages[] = '✅ ' . basename($img_path) . ' の割り当てを解除しました。';
+        if (saveVehicles($data) === false) {
+            $messages[] = gt_wa_save_unavailable_message();
+        } else {
+            $messages[] = '✅ ' . basename($img_path) . ' の割り当てを解除しました。';
+        }
     }
     $data     = loadVehicles();
     $vehicles = &$data['vehicles'];

@@ -20,7 +20,7 @@ jobs:
 
     env:
       SAKURA_PROD_PATH: /home/gltr/www/gloria-site
-      SAKURA_BACKUP_BASE: /home/gltr/www/_backups
+      SAKURA_BACKUP_BASE: /home/gltr/backups/site
 
     steps:
       - name: Checkout repository
@@ -39,6 +39,16 @@ jobs:
             echo "Confirmation text did not match. Deployment stopped."
             exit 1
           fi
+          if [ "$SAKURA_PROD_PATH" != "/home/gltr/www/gloria-site" ]; then
+            echo "Production destination must stay outside the private data directory."
+            exit 1
+          fi
+          case "/home/gltr/private/west-africa" in
+            "$SAKURA_PROD_PATH"|"$SAKURA_PROD_PATH"/*)
+              echo "Private data directory is inside the web root. Deployment stopped."
+              exit 1
+              ;;
+          esac
 
       - name: Install rsync
         run: |
@@ -80,6 +90,7 @@ jobs:
             --exclude='admin/.htpasswd' \
             --exclude='/frontend/data/vehicles.json' \
             --exclude='/vehicles.json' \
+            --exclude='/frontend/data/backup/' \
             -e "ssh -i ~/.ssh/sakura_deploy_key -p ${{ secrets.SAKURA_PORT || '22' }} -o StrictHostKeyChecking=yes" \
             ./ \
             "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}:$SAKURA_PROD_PATH/"
@@ -109,3 +120,8 @@ jobs:
           curl -sI --fail --max-time 20 "https://www.gloriatrading.com/ivory-coast.html" | grep -i "^Location:" | grep -q "/west-africa/cote-divoire"
           curl -I --fail --max-time 20 "https://www.gloriatrading.com/vehicle-detail.html?ref=REF-019"
           curl -I --fail --max-time 20 "https://www.gloriatrading.com/images/vehicles/REF-019-1.jpg"
+          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "https://www.gloriatrading.com/private/west-africa/vehicles.json")"
+          if [ "$code" != "404" ]; then
+            echo "Expected HTTP 404 but received $code from the private data URL." >&2
+            exit 1
+          fi
