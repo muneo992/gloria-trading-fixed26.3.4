@@ -140,6 +140,46 @@ static_script_audit() {
   if grep -E -q '/home/gltr/private/west-africa([^/-]|$)' "$WORKFLOW"; then
     fail "test workflow names the production private directory"
   fi
+  if grep -n 'ref:.*inputs.deploy_ref' "$WORKFLOW" >/dev/null; then
+    fail "checkout still receives deploy_ref directly"
+  fi
+  if ! grep -F -q 'scripts/resolve-deploy-ref.sh' "$WORKFLOW"; then
+    fail "workflow does not expand deploy_ref before checkout"
+  fi
+  if ! grep -F -q 'fetch-depth: 0' "$WORKFLOW"; then
+    fail "workflow does not fetch history before resolving a short SHA"
+  fi
+}
+
+check_deploy_ref_resolution() {
+  local full short branch line err
+  full="$(git -C "$ROOT" rev-parse HEAD)"
+  short="$(git -C "$ROOT" rev-parse --short=7 HEAD)"
+  branch="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)"
+  line="$(cd "$ROOT" && bash scripts/resolve-deploy-ref.sh "$short")"
+  [ "$line" = "sha=$full" ] || fail "short SHA was not expanded to the workflow HEAD"
+  line="$(cd "$ROOT" && bash scripts/resolve-deploy-ref.sh "$full")"
+  [ "$line" = "sha=$full" ] || fail "full SHA was not kept"
+  line="$(cd "$ROOT" && bash scripts/resolve-deploy-ref.sh "$branch")"
+  [ "$line" = "sha=$full" ] || fail "branch name was not resolved to the workflow HEAD"
+  err="$(mktemp)"
+  if (cd "$ROOT" && bash scripts/resolve-deploy-ref.sh "aaaaaaaa") >/dev/null 2>"$err"; then
+    rm -f -- "$err"
+    fail "unknown SHA was accepted"
+  fi
+  if ! grep -F -x -q 'deploy_ref_not_found' "$err"; then
+    rm -f -- "$err"
+    fail "unknown SHA did not stop cleanly"
+  fi
+  if (cd "$ROOT" && bash scripts/resolve-deploy-ref.sh "../outside") >/dev/null 2>"$err"; then
+    rm -f -- "$err"
+    fail "invalid deploy ref was accepted"
+  fi
+  if ! grep -F -x -q 'deploy_ref_invalid' "$err"; then
+    rm -f -- "$err"
+    fail "invalid deploy ref did not stop cleanly"
+  fi
+  rm -f -- "$err"
 }
 
 write_bank_config() {
@@ -196,6 +236,7 @@ prepare_values_fixture() {
 }
 
 static_script_audit
+check_deploy_ref_resolution
 
 prepare_values_fixture
 OUT="$BASE/out"

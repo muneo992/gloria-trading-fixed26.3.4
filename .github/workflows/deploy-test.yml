@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       deploy_ref:
-        description: "Branch, tag, or commit SHA to deploy"
+        description: "Branch, tag, or commit SHA. A short SHA is expanded before checkout."
         required: true
         type: string
 
@@ -74,40 +74,30 @@ jobs:
               ;;
           esac
 
-      - name: Checkout requested ref
+      - name: Checkout repository history
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.deploy_ref }}
           fetch-depth: 0
 
-      - name: Verify checked out ref and SHA
+      - name: Check out the requested deploy ref
         env:
           DEPLOY_REF_INPUT: ${{ inputs.deploy_ref }}
         run: |
           set -euo pipefail
-          ACTUAL_SHA="$(git rev-parse HEAD)"
-          RESOLVED_SHA=""
-
-          for CANDIDATE in \
-            "$DEPLOY_REF_INPUT" \
-            "refs/heads/$DEPLOY_REF_INPUT" \
-            "refs/tags/$DEPLOY_REF_INPUT" \
-            "origin/$DEPLOY_REF_INPUT"; do
-            if git rev-parse --verify --quiet --end-of-options "${CANDIDATE}^{commit}" >/tmp/deploy-ref-sha; then
-              RESOLVED_SHA="$(cat /tmp/deploy-ref-sha)"
-              break
-            fi
-          done
-
-          echo "GITHUB_REF=$GITHUB_REF"
-          echo "inputs.deploy_ref=$DEPLOY_REF_INPUT"
-          echo "resolved deploy_ref SHA=$RESOLVED_SHA"
-          echo "checked out HEAD SHA=$ACTUAL_SHA"
-
-          if [ -z "$RESOLVED_SHA" ] || [ "$ACTUAL_SHA" != "$RESOLVED_SHA" ]; then
-            echo "Requested deploy_ref does not match the checked out HEAD SHA. Deployment stopped."
+          set +x
+          RESOLVED_LINE="$(bash scripts/resolve-deploy-ref.sh "$DEPLOY_REF_INPUT")"
+          if [[ ! "$RESOLVED_LINE" =~ ^sha=[0-9a-f]{40}$ ]]; then
+            echo "deploy_ref_not_found"
             exit 1
           fi
+          RESOLVED="${RESOLVED_LINE#sha=}"
+          git checkout --quiet --detach "$RESOLVED"
+          ACTUAL="$(git rev-parse --verify HEAD)"
+          if [ "$ACTUAL" != "$RESOLVED" ]; then
+            echo "deploy_ref_mismatch"
+            exit 1
+          fi
+          echo "resolved_sha=$RESOLVED"
 
       - name: Validate Sakura test destination
         run: |
