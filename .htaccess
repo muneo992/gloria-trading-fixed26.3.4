@@ -17,9 +17,10 @@ RewriteRule ^admin(/|$) - [L]
 
 # Public vehicle feed. The administrative JSON master and its backups must
 # never be served as static files, including through the frontend/ path.
-RewriteRule ^data/vehicles\.json$ frontend/data/vehicle-feed.php [L,NC]
-RewriteRule ^frontend/data/vehicles\.json$ - [F,L,NC]
-RewriteRule ^(?:frontend/)?data/backup(?:/|$) - [F,L,NC]
+RewriteRule ^data/vehicles\.json$ frontend/data/vehicle-feed.php [END,NC]
+RewriteRule ^vehicles\.json$ - [F,END,NC]
+RewriteRule ^frontend/data/vehicles\.json$ - [F,END,NC]
+RewriteRule ^(?:frontend/)?data/backup(?:/|$) - [F,END,NC]
 
 # 旧国別ページ → 新URL（301）
 RewriteCond %{REQUEST_URI} ^/gloria-test(/|$) [NC]

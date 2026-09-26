@@ -2,5 +2,5 @@ Options -Indexes
 RewriteEngine On
 
 # Defense in depth when frontend/data is exposed directly or via a symlink.
-RewriteRule ^vehicles\.json$ - [F,L,NC]
-RewriteRule ^backup(?:/|$) - [F,L,NC]
+RewriteRule ^vehicles\.json$ - [F,END,NC]
+RewriteRule ^backup(?:/|$) - [F,END,NC]

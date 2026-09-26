@@ -65,11 +65,17 @@ $productionWorkflow = file_get_contents(dirname(__DIR__) . '/.github/workflows/d
 $testWorkflow = file_get_contents(dirname(__DIR__) . '/.github/workflows/deploy-test.yml');
 $adminIndex = file_get_contents(dirname(__DIR__) . '/admin/index.php');
 $adminHealth = file_get_contents(dirname(__DIR__) . '/admin/health.php');
-check(is_string($rootHtaccess) && str_contains($rootHtaccess, '^data/vehicles\\.json$ frontend/data/vehicle-feed.php'), 'Canonical public feed rewrite is missing.');
-check(str_contains($rootHtaccess, '^frontend/data/vehicles\\.json$ - [F,L,NC]'), 'Direct master JSON denial is missing.');
-check(str_contains($rootHtaccess, 'data/backup(?:/|$) - [F,L,NC]'), 'Backup denial is missing.');
-check(is_string($dataHtaccess) && str_contains($dataHtaccess, '^vehicles\\.json$ - [F,L,NC]'), 'Data-directory master denial is missing.');
-check(str_contains($dataHtaccess, '^backup(?:/|$) - [F,L,NC]'), 'Data-directory backup denial is missing.');
+check(is_string($rootHtaccess) && str_contains($rootHtaccess, '^data/vehicles\\.json$ frontend/data/vehicle-feed.php [END,NC]'), 'Canonical public feed rewrite must stop per-directory rewriting.');
+check(str_contains($rootHtaccess, '^vehicles\\.json$ - [F,END,NC]'), 'Legacy root master JSON denial is missing.');
+check(str_contains($rootHtaccess, '^frontend/data/vehicles\\.json$ - [F,END,NC]'), 'Direct master JSON denial is missing.');
+check(str_contains($rootHtaccess, 'data/backup(?:/|$) - [F,END,NC]'), 'Backup denial is missing.');
+check(
+    strpos($rootHtaccess, '^data/vehicles\\.json$ frontend/data/vehicle-feed.php [END,NC]')
+        < strpos($rootHtaccess, '^data/(.*)$ frontend/data/$1 [L]'),
+    'Canonical public feed rewrite must precede the generic data rewrite.'
+);
+check(is_string($dataHtaccess) && str_contains($dataHtaccess, '^vehicles\\.json$ - [F,END,NC]'), 'Data-directory master denial is missing.');
+check(str_contains($dataHtaccess, '^backup(?:/|$) - [F,END,NC]'), 'Data-directory backup denial is missing.');
 check(
     is_string($netlifyConfig)
     && str_contains($netlifyConfig, 'command = "node scripts/build-netlify-public-data.js"'),
@@ -86,9 +92,22 @@ check(
     'Test rsync exclusions must remain in one continued command.'
 );
 check(
-    str_contains($testWorkflow, "php '\$EXPECTED_SAKURA_TEST_PATH/admin/health.php'")
-    && !str_contains($testWorkflow, 'admin/index.php?diag=1'),
+    str_contains($testWorkflow, "php '\$EXPECTED_SAKURA_TEST_PATH/admin/health.php'"),
     'Test deployment must use CLI-only health diagnostics.'
+);
+check(
+    str_contains($testWorkflow, 'expect_status 200 "$BASE_URL/data/vehicles.json"')
+    && str_contains($testWorkflow, 'Public vehicle feed contains a private field.')
+    && str_contains($testWorkflow, 'expect_status 403 "$BASE_URL/vehicles.json"')
+    && str_contains($testWorkflow, 'expect_status 403 "$BASE_URL/frontend/data/vehicles.json"')
+    && str_contains($testWorkflow, 'expect_status 403 "$BASE_URL/data/backup/probe.json"')
+    && str_contains($testWorkflow, 'expect_status 403 "$BASE_URL/frontend/data/backup/probe.json"')
+    && str_contains($testWorkflow, 'expect_status 404 "$BASE_URL/admin/health.php"')
+    && str_contains($testWorkflow, 'expect_status 404 "$BASE_URL/admin/index.php?diag=1"')
+    && str_contains($testWorkflow, 'expect_status 200 "$BASE_URL/admin/"')
+    && str_contains($testWorkflow, 'grep -q "管理画面"')
+    && str_contains($testWorkflow, '--output /dev/null --max-time 20 "$BASE_URL/catalog.html"'),
+    'Test deployment security smoke coverage is incomplete.'
 );
 check(is_string($adminIndex) && !str_contains($adminIndex, "file_get_contents(__DIR__ . '/.htaccess')"), 'Web diagnostics still read admin/.htaccess.');
 check(str_contains($adminIndex, 'http_response_code(404);'), 'diag requests are not rejected.');
