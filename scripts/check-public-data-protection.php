@@ -88,7 +88,7 @@ check(
     'Test rsync exclusions must remain in one continued command.'
 );
 check(
-    str_contains($testWorkflow, "php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php'")
+    str_contains($testWorkflow, "php '\$EXPECTED_SAKURA_TEST_PATH/admin/health.php'")
     && !str_contains($testWorkflow, 'admin/index.php?diag=1'),
     'Test deployment must use CLI-only health diagnostics.'
 );
