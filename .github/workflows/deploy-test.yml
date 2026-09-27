@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       private_data:
-        description: "prepare copies test private data only; deploy syncs code after that check; rollback restores the pre-cutover private master; append-missing adds vehicles that are absent from the test private master"
+        description: "prepare copies test private data only; deploy syncs code after that check; rollback restores the pre-cutover private master"
         required: true
         type: choice
         default: deploy
@@ -12,9 +12,8 @@ on:
           - deploy
           - prepare
           - rollback
-          - append-missing
       confirm:
-        description: "DEPLOY_TEST, PREPARE_WA_TEST_PRIVATE, ROLLBACK_WA_TEST_PRIVATE, or APPEND_WA_TEST_MISSING"
+        description: "DEPLOY_TEST, PREPARE_WA_TEST_PRIVATE, or ROLLBACK_WA_TEST_PRIVATE"
         required: true
         type: string
       deploy_ref:
@@ -67,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           case "${PRIVATE_DATA}:${CONFIRM_INPUT}" in
-            deploy:DEPLOY_TEST|prepare:PREPARE_WA_TEST_PRIVATE|rollback:ROLLBACK_WA_TEST_PRIVATE|append-missing:APPEND_WA_TEST_MISSING)
+            deploy:DEPLOY_TEST|prepare:PREPARE_WA_TEST_PRIVATE|rollback:ROLLBACK_WA_TEST_PRIVATE)
               ;;
             *)
               echo "Confirmation text did not match the selected private_data action. Stopped."
@@ -134,7 +133,6 @@ jobs:
             prepare) MODE=prepare ;;
             rollback) MODE=rollback ;;
             deploy) MODE=check ;;
-            append-missing) MODE=append-missing ;;
             *)
               echo "private_data_invalid"
               exit 1

@@ -8,21 +8,12 @@ umask 077
 MODE="${1:-}"
 WEB="${2:-}"
 PRIV="${3:-}"
-PROD_WEB_ARG="${4:-}"
 
 LIST_FILE=""
-MERGE_FILE=""
-PHP_FILE=""
 
 cleanup() {
   if [ -n "$LIST_FILE" ]; then
     rm -f -- "$LIST_FILE"
-  fi
-  if [ -n "$MERGE_FILE" ]; then
-    rm -f -- "$MERGE_FILE"
-  fi
-  if [ -n "$PHP_FILE" ]; then
-    rm -f -- "$PHP_FILE"
   fi
 }
 
@@ -46,7 +37,7 @@ assert_token() {
 }
 
 assert_paths() {
-  if [ "$MODE" != "prepare" ] && [ "$MODE" != "rollback" ] && [ "$MODE" != "check" ] && [ "$MODE" != "append-missing" ]; then
+  if [ "$MODE" != "prepare" ] && [ "$MODE" != "rollback" ] && [ "$MODE" != "check" ]; then
     die "mode_invalid"
   fi
   if [ -z "$WEB" ] || [ -z "$PRIV" ]; then
@@ -514,240 +505,10 @@ check_private() {
   log "check_ok"
 }
 
-append_missing() {
-  local prod_web prod_json merge stamp saved line
-  if [ "${GLORIA_APPEND_FIXTURE:-}" = "1" ]; then
-    prod_web="$PROD_WEB_ARG"
-    case "$prod_web" in
-      ""|/home/gltr/*|*".."*) die "append_paths_refused" ;;
-    esac
-    case "$WEB" in
-      /home/gltr/*) die "append_paths_refused" ;;
-    esac
-    case "$PRIV" in
-      /home/gltr/*) die "append_paths_refused" ;;
-    esac
-  else
-    if [ "$WEB" != "/home/gltr/www/gloria-test" ] || [ "$PRIV" != "/home/gltr/private/west-africa-test" ]; then
-      die "append_paths_refused"
-    fi
-    prod_web="/home/gltr/www/gloria-site"
-  fi
-  prod_json="$prod_web/frontend/data/vehicles.json"
-  assert_regular_file "$prod_json" "production_master"
-  assert_regular_file "$PRIV/vehicles.json" "private_master"
-  assert_real_directory "$WEB" "web_root"
-  local before_prod before_public
-  before_prod="$(file_sha256 "$prod_json")"
-  if [ -f "$WEB/frontend/data/vehicles.json" ] && [ ! -L "$WEB/frontend/data/vehicles.json" ]; then
-    before_public="$(file_sha256 "$WEB/frontend/data/vehicles.json")"
-  fi
-  stamp="$(date +%Y%m%d-%H%M%S)"
-  saved="$PRIV/archive/before-append-$stamp.json"
-  local n=0
-  while [ -e "$saved" ]; do
-    n=$((n + 1))
-    saved="$PRIV/archive/before-append-$stamp-$n.json"
-  done
-  install_bytes "$PRIV/vehicles.json" "$saved"
-  MERGE_FILE="$PRIV/vehicles.json.appending"
-  PHP_FILE="$(mktemp)"
-  cat >"$PHP_FILE" <<'PHP'
-<?php
-$prodPath = $argv[1] ?? '';
-$testPath = $argv[2] ?? '';
-$outPath = $argv[3] ?? '';
-$fixture = getenv('GLORIA_APPEND_FIXTURE') === '1';
-$liveProd = '/home/gltr/www/gloria-site/frontend/data/vehicles.json';
-$liveTest = '/home/gltr/private/west-africa-test/vehicles.json';
-if (!$fixture) {
-    if ($prodPath !== $liveProd || $testPath !== $liveTest || $outPath !== $liveTest . '.appending') {
-        fwrite(STDERR, "append_path_refused\n");
-        exit(1);
-    }
-} elseif ($prodPath === '' || str_starts_with($prodPath, '/home/gltr/') || str_starts_with($testPath, '/home/gltr/') || str_starts_with($outPath, '/home/gltr/') || str_contains($prodPath, '..') || str_contains($testPath, '..') || str_contains($outPath, '..')) {
-    fwrite(STDERR, "append_path_refused\n");
-    exit(1);
-}
-$load = static function (string $path): array {
-    $raw = file_get_contents($path);
-    if (!is_string($raw) || $raw === '') {
-        throw new RuntimeException('unreadable');
-    }
-    $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-    if (!is_array($data) || !isset($data['vehicles']) || !is_array($data['vehicles'])) {
-        throw new RuntimeException('invalid');
-    }
-    return $data;
-};
-try {
-    $prod = $load($prodPath);
-    $test = $load($testPath);
-} catch (Throwable $exception) {
-    fwrite(STDERR, "append_json_invalid\n");
-    exit(1);
-}
-$ordered = [];
-$index = [];
-foreach ($test['vehicles'] as $row) {
-    $ref = $row['ref_id'] ?? null;
-    if (!is_array($row) || !is_string($ref) || !preg_match('/^REF-[0-9]{3}$/', $ref) || isset($index[$ref])) {
-        fwrite(STDERR, "append_ref_invalid\n");
-        exit(1);
-    }
-    $index[$ref] = count($ordered);
-    $ordered[] = $row;
-}
-$originalCount = count($ordered);
-$added = [];
-$images = [];
-foreach ($prod['vehicles'] as $row) {
-    $ref = $row['ref_id'] ?? null;
-    if (!is_array($row) || !is_string($ref) || !preg_match('/^REF-[0-9]{3}$/', $ref)) {
-        fwrite(STDERR, "append_ref_invalid\n");
-        exit(1);
-    }
-    if (isset($index[$ref])) {
-        continue;
-    }
-    $added[] = $row;
-    $index[$ref] = count($ordered);
-    $ordered[] = $row;
-    $gallery = $row['gallery'] ?? [];
-    if (!is_array($gallery)) {
-        fwrite(STDERR, "append_gallery_invalid\n");
-        exit(1);
-    }
-    foreach ($gallery as $path) {
-        if (!is_string($path) || !preg_match('#^images/vehicles/[A-Za-z0-9._-]+$#', $path)) {
-            fwrite(STDERR, "append_gallery_invalid\n");
-            exit(1);
-        }
-        $images[$path] = true;
-    }
-}
-if ($added === []) {
-    fwrite(STDERR, "append_none\n");
-    exit(2);
-}
-for ($i = 0; $i < $originalCount; $i++) {
-    if ($ordered[$i] !== $test['vehicles'][$i]) {
-        fwrite(STDERR, "append_existing_changed\n");
-        exit(1);
-    }
-}
-$test['vehicles'] = $ordered;
-$encoded = json_encode($test, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-if (file_put_contents($outPath, $encoded . "\n", LOCK_EX) === false) {
-    fwrite(STDERR, "append_write_failed\n");
-    exit(1);
-}
-chmod($outPath, 0600);
-echo 'appended=' . count($added) . "\n";
-foreach ($added as $row) {
-    echo 'appended_ref=' . $row['ref_id'] . "\n";
-}
-foreach (array_keys($images) as $path) {
-    echo 'image=' . $path . "\n";
-}
-echo "existing_unchanged=yes\n";
-echo 'private_vehicles=' . count($ordered) . "\n";
-echo "merge_ok\n";
-PHP
-  local out err
-  out="$(mktemp)"
-  err="$(mktemp)"
-  set +e
-  GLORIA_APPEND_FIXTURE="${GLORIA_APPEND_FIXTURE:-}" php -d display_errors=0 -d log_errors=0 "$PHP_FILE" "$prod_json" "$PRIV/vehicles.json" "$MERGE_FILE" >"$out" 2>"$err"
-  local status=$?
-  set -e
-  if [ "$status" -eq 2 ]; then
-    rm -f -- "$out" "$err" "$MERGE_FILE"
-    MERGE_FILE=""
-    die "append_none"
-  fi
-  if [ "$status" -ne 0 ]; then
-    rm -f -- "$out" "$err" "$MERGE_FILE"
-    MERGE_FILE=""
-    die "append_failed"
-  fi
-  while IFS= read -r line || [ -n "$line" ]; do
-    [ -z "$line" ] && continue
-    if [[ ! "$line" =~ ^(appended=[0-9]+|appended_ref=REF-[0-9]{3}|image=images/vehicles/[A-Za-z0-9._-]+|existing_unchanged=yes|private_vehicles=[0-9]+|merge_ok)$ ]]; then
-      rm -f -- "$out" "$err" "$MERGE_FILE"
-      MERGE_FILE=""
-      die "append_output_rejected"
-    fi
-  done <"$out"
-  if ! grep -F -x -q "merge_ok" "$out"; then
-    rm -f -- "$out" "$err"
-    die "append_failed"
-  fi
-  local copied=0 kept=0 absent=0
-  while IFS= read -r line; do
-    case "$line" in
-      image=*)
-        local rel="${line#image=}"
-        local src="$prod_web/frontend/$rel"
-        if [ ! -f "$src" ] || [ -L "$src" ]; then
-          absent=$((absent + 1))
-          continue
-        fi
-        local dest="$WEB/frontend/$rel"
-        if [ -e "$dest" ]; then
-          kept=$((kept + 1))
-          continue
-        fi
-        mkdir -p "$(dirname "$dest")"
-        local img_tmp="${dest}.partial"
-        if ! cp -- "$src" "$img_tmp" 2>/dev/null; then
-          rm -f -- "$img_tmp"
-          die "copy_failed"
-        fi
-        chmod 644 "$img_tmp" 2>/dev/null || {
-          rm -f -- "$img_tmp"
-          die "chmod_failed"
-        }
-        if ! cmp -s "$src" "$img_tmp"; then
-          rm -f -- "$img_tmp"
-          die "copy_mismatch"
-        fi
-        if ! mv -f "$img_tmp" "$dest" 2>/dev/null; then
-          rm -f -- "$img_tmp"
-          die "copy_failed"
-        fi
-        copied=$((copied + 1))
-        ;;
-      appended=*|appended_ref=*|existing_unchanged=yes|private_vehicles=*|merge_ok)
-        log "$line"
-        ;;
-    esac
-  done <"$out"
-  log "images_copied=$copied"
-  log "images_kept=$kept"
-  log "images_absent=$absent"
-  install_bytes "$MERGE_FILE" "$PRIV/vehicles.json"
-  rm -f -- "$MERGE_FILE"
-  MERGE_FILE=""
-  if [ "$(file_sha256 "$prod_json")" != "$before_prod" ]; then
-    die "production_source_changed"
-  fi
-  if [ -n "${before_public:-}" ] && [ "$(file_sha256 "$WEB/frontend/data/vehicles.json")" != "$before_public" ]; then
-    die "public_master_changed"
-  fi
-  json_vehicle_count "$PRIV/vehicles.json" >/dev/null
-  log "append_backup=created"
-  log "public_master=kept"
-  log "append_ok"
-  rm -f -- "$out" "$err" "$PHP_FILE"
-  PHP_FILE=""
-}
-
 assert_paths
 case "$MODE" in
   prepare) prepare_private ;;
   rollback) rollback_private ;;
   check) check_private ;;
-  append-missing) append_missing ;;
   *) die "mode_invalid" ;;
 esac
