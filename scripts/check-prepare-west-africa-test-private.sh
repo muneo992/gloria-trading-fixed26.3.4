@@ -149,6 +149,15 @@ static_script_audit() {
   if ! grep -F -q 'fetch-depth: 0' "$WORKFLOW"; then
     fail "workflow does not fetch history before resolving a short SHA"
   fi
+  if grep -F -q 'SAKURA_TEST_PATH/scripts/sakura-publish-links.sh' "$WORKFLOW"; then
+    fail "symlink step still sends its command through the login shell"
+  fi
+  if ! grep -F -q "bash --noprofile --norc -se' <<'REMOTE'" "$WORKFLOW"; then
+    fail "remote shell scripts are not started with bash"
+  fi
+  if ! grep -F -q "php '\$EXPECTED_SAKURA_TEST_PATH/admin/health.php'" "$WORKFLOW"; then
+    fail "health check command string was dropped"
+  fi
 }
 
 check_deploy_ref_resolution() {

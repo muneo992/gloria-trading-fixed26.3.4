@@ -156,7 +156,7 @@ jobs:
             -p "$SSH_PORT" \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            'bash -se' <<'REMOTE'
+            'bash --noprofile --norc -se' <<'REMOTE'
           set -euo pipefail
           TEST_PATH='/home/gltr/www/gloria-test'
           BACKUP_BASE='/home/gltr/backups/site'
@@ -216,23 +216,46 @@ jobs:
         if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
-          ssh \
+          set +x
+          ssh -T \
             -i ~/.ssh/id_rsa \
             -p "$SSH_PORT" \
+            -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            "set -euo pipefail; WEB='/home/gltr/www/gloria-test'; PRIV='/home/gltr/private/west-africa-test'; case \"\$PRIV\" in \"\$WEB\"|\"\$WEB\"/*) echo 'Private data directory is inside the web root.'; exit 1 ;; esac; if [ -e \"\$WEB/private\" ]; then echo 'Web root contains a private directory.'; exit 1; fi; bash '$SAKURA_TEST_PATH/scripts/sakura-publish-links.sh' '$SAKURA_TEST_PATH'"
+            'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+          WEB='/home/gltr/www/gloria-test'
+          PRIV='/home/gltr/private/west-africa-test'
+          case "$PRIV" in
+            "$WEB"|"$WEB"/*)
+              echo "Private data directory is inside the web root."
+              exit 1
+              ;;
+          esac
+          if [ -e "$WEB/private" ]; then
+            echo "Web root contains a private directory."
+            exit 1
+          fi
+          bash "$WEB/scripts/sakura-publish-links.sh" "$WEB"
+          REMOTE
 
       - name: Validate deployed PHP syntax
         if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
-          ssh \
+          set +x
+          ssh -T \
             -i ~/.ssh/id_rsa \
             -p "$SSH_PORT" \
+            -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            "set -e; php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'; php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'"
+            'bash --noprofile --norc -se' <<REMOTE
+          set -euo pipefail
+          php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'
+          php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'
+          REMOTE
 
       - name: Smoke test gloria-test site
         if: ${{ inputs.private_data == 'deploy' }}
