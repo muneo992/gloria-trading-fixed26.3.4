@@ -3,20 +3,114 @@ name: Deploy main to Sakura production
 on:
   workflow_dispatch:
     inputs:
+      private_data:
+        description: "prepare copies the live 26-vehicle production master on the server; deploy syncs code only after that private master checks as 26"
+        required: true
+        type: choice
+        default: deploy
+        options:
+          - prepare
+          - deploy
       confirm:
-        description: "Type DEPLOY_PRODUCTION to deploy main to www.gloriatrading.com"
+        description: "PREPARE_WA_PRODUCTION_PRIVATE or DEPLOY_PRODUCTION"
         required: true
         type: string
+
+permissions:
+  contents: read
 
 concurrency:
   group: sakura-gloria-production-deploy
   cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate confirmation
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+          PRIVATE_DATA: ${{ inputs.private_data }}
+        run: |
+          set -euo pipefail
+          set +x
+          case "${PRIVATE_DATA}:${CONFIRM_INPUT}" in
+            deploy:DEPLOY_PRODUCTION|prepare:PREPARE_WA_PRODUCTION_PRIVATE)
+              ;;
+            *)
+              echo "Confirmation text did not match the selected private_data action. Stopped."
+              exit 1
+              ;;
+          esac
+
+  check-production-script:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout workflow ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Install PHP CLI
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli
+
+      - name: Check the production private prepare script
+        run: bash scripts/check-prepare-west-africa-production-private.sh
+
+  reject-deploy-off-main:
+    needs: validate
+    if: ${{ inputs.private_data == 'deploy' && github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop code deploy before the branch is main
+        run: |
+          echo "Production code deploy runs only from main after the private master count is 26."
+          exit 1
+
+  prepare:
+    needs: check-production-script
+    if: ${{ inputs.private_data == 'prepare' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout the prepare script
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup SSH key and known hosts
+        run: |
+          set -euo pipefail
+          set +x
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/sakura_deploy_key
+          chmod 600 ~/.ssh/sakura_deploy_key
+          ssh-keyscan -p "${{ secrets.SAKURA_PORT || '22' }}" -H "${{ secrets.SAKURA_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copy the live production master outside the web root
+        run: |
+          set -euo pipefail
+          set +x
+          ssh -T \
+            -i ~/.ssh/sakura_deploy_key \
+            -p "${{ secrets.SAKURA_PORT || '22' }}" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
+            "bash --noprofile --norc -se -- prepare /home/gltr/www/gloria-site /home/gltr/private/west-africa" \
+            < scripts/prepare-west-africa-production-private.sh
+
   deploy-production:
     name: Deploy to Sakura production with backup
+    needs: check-production-script
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY_PRODUCTION' }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.private_data == 'deploy' && inputs.confirm == 'DEPLOY_PRODUCTION' }}
 
     env:
       SAKURA_PROD_PATH: /home/gltr/www/gloria-site
@@ -61,6 +155,19 @@ jobs:
           printf '%s\n' "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/sakura_deploy_key
           chmod 600 ~/.ssh/sakura_deploy_key
           ssh-keyscan -p "${{ secrets.SAKURA_PORT || '22' }}" -H "${{ secrets.SAKURA_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Require the production private master to contain 26 vehicles
+        run: |
+          set -euo pipefail
+          set +x
+          ssh -T \
+            -i ~/.ssh/sakura_deploy_key \
+            -p "${{ secrets.SAKURA_PORT || '22' }}" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
+            "bash --noprofile --norc -se -- check /home/gltr/www/gloria-site /home/gltr/private/west-africa" \
+            < scripts/prepare-west-africa-production-private.sh
 
       - name: Backup current production site
         run: |
@@ -125,3 +232,33 @@ jobs:
             echo "Expected HTTP 404 but received $code from the private data URL." >&2
             exit 1
           fi
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 20 "https://www.gloriatrading.com/frontend/data/vehicles.json")"
+          if [ "$code" != "403" ]; then
+            echo "Expected HTTP 403 but received $code from the direct master URL." >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          url = "https://www.gloriatrading.com/data/vehicles.json"
+          banned = {
+              "auction_price_jpy",
+              "purchase_price_usd",
+              "profit_usd",
+              "target_price_usd",
+              "customer_name",
+              "chassis_no",
+              "basis_from",
+              "basis_to",
+              "quote_spec_data",
+          }
+          with urllib.request.urlopen(url, timeout=20) as response:
+              payload = json.load(response)
+          vehicles = payload.get("vehicles")
+          if not isinstance(vehicles, list) or len(vehicles) != 26:
+              raise SystemExit("feed_count_unexpected")
+          for row in vehicles:
+              if not isinstance(row, dict) or banned.intersection(row):
+                  raise SystemExit("private_field_present")
+          print("public_feed_vehicles=26")
+          PY

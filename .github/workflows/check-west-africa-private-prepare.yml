@@ -22,4 +22,6 @@ jobs:
           sudo apt-get install -y php-cli
 
       - name: Run local prepare script checks
-        run: bash scripts/check-prepare-west-africa-test-private.sh
+        run: |
+          bash scripts/check-prepare-west-africa-test-private.sh
+          bash scripts/check-prepare-west-africa-production-private.sh
