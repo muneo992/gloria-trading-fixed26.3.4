@@ -204,11 +204,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $data['vehicles'] = array_values($existing);
             }
 
-            saveVehicles($data);
-            unset($_SESSION['import_preview']);
-            $count = count($rows);
-            header('Location: index.php?imported=' . $count . '&mode=' . $mode);
-            exit;
+            if (saveVehicles($data) === false) {
+                $errors[] = gt_wa_save_unavailable_message();
+            } else {
+                unset($_SESSION['import_preview']);
+                $count = count($rows);
+                header('Location: index.php?imported=' . $count . '&mode=' . $mode);
+                exit;
+            }
         }
     }
 

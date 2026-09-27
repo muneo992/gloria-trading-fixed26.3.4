@@ -5,7 +5,9 @@ if (empty($_SESSION['admin_logged_in'])) {
     exit;
 }
 
-$password_file = __DIR__ . '/password.txt';
+require_once __DIR__ . '/bootstrap.php';
+
+$password_file = gt_wa_password_path();
 $message = '';
 $error = '';
 
@@ -25,8 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($new_password !== $confirm_password) {
         $error = '確認用パスワードが一致しません。';
     } else {
-        if (file_put_contents($password_file, $new_password . PHP_EOL, LOCK_EX) === false) {
-            $error = 'password.txt への書き込みに失敗しました。admin フォルダの権限を確認してください。';
+        $private_ready = is_string($password_file) && gt_wa_private_storage_ready();
+        $previous_umask = umask(0077);
+        $written = $private_ready ? file_put_contents($password_file, $new_password . PHP_EOL, LOCK_EX) : false;
+        umask($previous_umask);
+        if ($written === false) {
+            $error = 'パスワードを保存できません。保存先が利用できないため、変更は書き込まれていません。';
         } else {
             @chmod($password_file, 0600);
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -63,7 +69,7 @@ button:hover { background:#0052a3; }
 </div>
 <div class="container">
   <h1>管理パスワード変更</h1>
-  <p class="note">新しいパスワードはサーバー上の <code>admin/password.txt</code> に保存されます。このファイルはGitHubには保存されません。</p>
+  <p class="note">新しいパスワードはサーバーの私有パスワードファイルに保存されます。このファイルはGitHubには保存されません。</p>
   <?php if ($message): ?><div class="message"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
   <?php if ($error): ?><div class="error"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
   <form method="post">

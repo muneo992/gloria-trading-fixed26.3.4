@@ -95,10 +95,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'uploa
                 }
             }
             $zip->close();
-            saveVehicles($data);
-
-            $messages[] = "✅ {$extracted}枚の画像を展開しました。";
-            if ($assigned > 0) $messages[] = "✅ {$assigned}枚を車両データに自動割り当てしました。";
+            if (saveVehicles($data) === false) {
+                $messages[] = gt_wa_save_unavailable_message();
+            } else {
+                $messages[] = "✅ {$extracted}枚の画像を展開しました。";
+                if ($assigned > 0) $messages[] = "✅ {$assigned}枚を車両データに自動割り当てしました。";
+            }
             if (!empty($unmatched)) {
                 $messages[] = "⚠ " . count($unmatched) . "枚はRef IDが特定できず未割り当てです：" . implode(', ', array_slice($unmatched, 0, 5)) . (count($unmatched) > 5 ? '...' : '');
             }
@@ -141,10 +143,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'scan_
             $unmatched[] = $basename;
         }
     }
-    saveVehicles($data);
-
-    $messages[] = "✅ {$scanned}枚の画像ファイルをスキャンしました。";
-    if ($assigned > 0) $messages[] = "✅ {$assigned}枚を新たに車両データに割り当てました。";
+    if (saveVehicles($data) === false) {
+        $messages[] = gt_wa_save_unavailable_message();
+    } else {
+        $messages[] = "✅ {$scanned}枚の画像ファイルをスキャンしました。";
+        if ($assigned > 0) $messages[] = "✅ {$assigned}枚を新たに車両データに割り当てました。";
+    }
     if (!empty($unmatched)) {
         $messages[] = "⚠ " . count($unmatched) . "枚はRef IDが特定できず未割り当てです：" . implode(', ', array_slice($unmatched, 0, 5)) . (count($unmatched) > 5 ? '...' : '');
     }

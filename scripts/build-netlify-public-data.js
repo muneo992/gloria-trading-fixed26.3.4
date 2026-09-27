@@ -43,6 +43,29 @@ function publicVehicleRecord(record) {
   return projected;
 }
 
+function internalFieldNames(decoded) {
+  const names = [];
+  const root = decoded && typeof decoded === 'object' && !Array.isArray(decoded) ? decoded : {};
+  for (const key of Object.keys(root)) {
+    if (key !== 'vehicles') names.push(key);
+  }
+  const vehicles = Array.isArray(root.vehicles) ? root.vehicles : [];
+  vehicles.forEach((record, index) => {
+    const source = record && typeof record === 'object' && !Array.isArray(record) ? record : {};
+    for (const key of Object.keys(source)) {
+      if (key === 'gallery') {
+        const gallery = source.gallery;
+        if (!Array.isArray(gallery) || gallery.some(value => typeof value !== 'string')) {
+          names.push(`vehicles[${index}].gallery`);
+        }
+        continue;
+      }
+      if (!PUBLIC_SCALAR_FIELDS.includes(key)) names.push(key);
+    }
+  });
+  return [...new Set(names)];
+}
+
 function publicVehicleData(decoded) {
   const vehicles = decoded && Array.isArray(decoded.vehicles) ? decoded.vehicles : [];
   return { vehicles: vehicles.map(publicVehicleRecord) };
@@ -50,6 +73,12 @@ function publicVehicleData(decoded) {
 
 function build(inputPath, outputPath) {
   const decoded = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+  const internalFields = internalFieldNames(decoded);
+  if (internalFields.length > 0) {
+    process.stderr.write(`Refusing to publish vehicle data because internal fields are present: ${internalFields.join(', ')}\n`);
+    process.exitCode = 1;
+    return;
+  }
   const projected = publicVehicleData(decoded);
   const temporaryPath = `${outputPath}.public-${process.pid}.tmp`;
 
@@ -69,4 +98,4 @@ if (require.main === module) {
   build(inputPath, outputPath);
 }
 
-module.exports = { PUBLIC_SCALAR_FIELDS, publicVehicleData };
+module.exports = { PUBLIC_SCALAR_FIELDS, internalFieldNames, publicVehicleData };

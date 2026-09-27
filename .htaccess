@@ -21,6 +21,9 @@ RewriteRule ^data/vehicles\.json$ frontend/data/vehicle-feed.php [END,NC]
 RewriteRule ^vehicles\.json$ - [F,END,NC]
 RewriteRule ^frontend/data/vehicles\.json$ - [F,END,NC]
 RewriteRule ^(?:frontend/)?data/backup(?:/|$) - [F,END,NC]
+# Quote, certificate, and general uploads are operational files.
+# Catalog photos stay under images/vehicles/ and remain public.
+RewriteRule ^(?:frontend/)?uploads(?:/|$) - [F,END,NC]
 
 # 旧国別ページ → 新URL（301）
 RewriteCond %{REQUEST_URI} ^/gloria-test(/|$) [NC]

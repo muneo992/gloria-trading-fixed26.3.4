@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require_once dirname(__DIR__, 2) . '/admin/bootstrap.php';
 require_once __DIR__ . '/public-vehicle-data.php';
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -9,7 +10,11 @@ header('Pragma: no-cache');
 header('X-Content-Type-Options: nosniff');
 
 try {
-    $raw = file_get_contents(__DIR__ . '/vehicles.json');
+    $source = gt_wa_feed_source_path();
+    if ($source === null) {
+        throw new RuntimeException('Vehicle master is unavailable.');
+    }
+    $raw = file_get_contents($source);
     if ($raw === false) {
         throw new RuntimeException('Vehicle master is unavailable.');
     }

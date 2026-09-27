@@ -3,22 +3,57 @@ name: Deploy selected ref to Sakura Test (gloria-test)
 on:
   workflow_dispatch:
     inputs:
+      private_data:
+        description: "prepare copies test private data only; deploy syncs code after that check; rollback restores the pre-cutover private master"
+        required: true
+        type: choice
+        default: deploy
+        options:
+          - deploy
+          - prepare
+          - rollback
       confirm:
-        description: "Type DEPLOY_TEST to deploy to gloria-test"
+        description: "DEPLOY_TEST, PREPARE_WA_TEST_PRIVATE, or ROLLBACK_WA_TEST_PRIVATE"
         required: true
         type: string
       deploy_ref:
-        description: "Branch, tag, or commit SHA to deploy"
+        description: "Branch, tag, or commit SHA. A short SHA is expanded before checkout."
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
-  deploy:
+  test-prepare-script:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout workflow ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Install PHP CLI
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli
+
+      - name: Check the test private prepare script
+        run: bash scripts/check-prepare-west-africa-test-private.sh
+
+  deploy:
+    needs: test-prepare-script
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: sakura-gloria-test-deploy
+      cancel-in-progress: false
     env:
       EXPECTED_SAKURA_TEST_PATH: /home/gltr/www/gloria-test
       SAKURA_TEST_PATH: ${{ secrets.SAKURA_TEST_PATH }}
-      SAKURA_BACKUP_BASE: /home/gltr/www/_backups
+      SAKURA_BACKUP_BASE: /home/gltr/backups/site
       SSH_HOST: ${{ secrets.SAKURA_HOST }}
       SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
       SSH_USER: ${{ secrets.SAKURA_USER }}
@@ -27,47 +62,42 @@ jobs:
       - name: Validate confirmation
         env:
           CONFIRM_INPUT: ${{ inputs.confirm }}
+          PRIVATE_DATA: ${{ inputs.private_data }}
         run: |
           set -euo pipefail
-          if [ "$CONFIRM_INPUT" != "DEPLOY_TEST" ]; then
-            echo "Confirmation text did not match DEPLOY_TEST. Deployment stopped."
-            exit 1
-          fi
+          case "${PRIVATE_DATA}:${CONFIRM_INPUT}" in
+            deploy:DEPLOY_TEST|prepare:PREPARE_WA_TEST_PRIVATE|rollback:ROLLBACK_WA_TEST_PRIVATE)
+              ;;
+            *)
+              echo "Confirmation text did not match the selected private_data action. Stopped."
+              exit 1
+              ;;
+          esac
 
-      - name: Checkout requested ref
+      - name: Checkout repository history
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.deploy_ref }}
           fetch-depth: 0
 
-      - name: Verify checked out ref and SHA
+      - name: Check out the requested deploy ref
         env:
           DEPLOY_REF_INPUT: ${{ inputs.deploy_ref }}
         run: |
           set -euo pipefail
-          ACTUAL_SHA="$(git rev-parse HEAD)"
-          RESOLVED_SHA=""
-
-          for CANDIDATE in \
-            "$DEPLOY_REF_INPUT" \
-            "refs/heads/$DEPLOY_REF_INPUT" \
-            "refs/tags/$DEPLOY_REF_INPUT" \
-            "origin/$DEPLOY_REF_INPUT"; do
-            if git rev-parse --verify --quiet --end-of-options "${CANDIDATE}^{commit}" >/tmp/deploy-ref-sha; then
-              RESOLVED_SHA="$(cat /tmp/deploy-ref-sha)"
-              break
-            fi
-          done
-
-          echo "GITHUB_REF=$GITHUB_REF"
-          echo "inputs.deploy_ref=$DEPLOY_REF_INPUT"
-          echo "resolved deploy_ref SHA=$RESOLVED_SHA"
-          echo "checked out HEAD SHA=$ACTUAL_SHA"
-
-          if [ -z "$RESOLVED_SHA" ] || [ "$ACTUAL_SHA" != "$RESOLVED_SHA" ]; then
-            echo "Requested deploy_ref does not match the checked out HEAD SHA. Deployment stopped."
+          set +x
+          RESOLVED_LINE="$(bash scripts/resolve-deploy-ref.sh "$DEPLOY_REF_INPUT")"
+          if [[ ! "$RESOLVED_LINE" =~ ^sha=[0-9a-f]{40}$ ]]; then
+            echo "deploy_ref_not_found"
             exit 1
           fi
+          RESOLVED="${RESOLVED_LINE#sha=}"
+          git checkout --quiet --detach "$RESOLVED"
+          ACTUAL="$(git rev-parse --verify HEAD)"
+          if [ "$ACTUAL" != "$RESOLVED" ]; then
+            echo "deploy_ref_mismatch"
+            exit 1
+          fi
+          echo "resolved_sha=$RESOLVED"
 
       - name: Validate Sakura test destination
         run: |
@@ -78,6 +108,13 @@ jobs:
             exit 1
           fi
 
+      - name: Checkout the private prepare script from this workflow
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: wa-workflow
+          fetch-depth: 1
+
       - name: Setup SSH key and known hosts
         run: |
           set -euo pipefail
@@ -86,7 +123,32 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
+      - name: Prepare, check, or roll back West Africa test private data
+        env:
+          PRIVATE_DATA: ${{ inputs.private_data }}
+        run: |
+          set -euo pipefail
+          set +x
+          case "$PRIVATE_DATA" in
+            prepare) MODE=prepare ;;
+            rollback) MODE=rollback ;;
+            deploy) MODE=check ;;
+            *)
+              echo "private_data_invalid"
+              exit 1
+              ;;
+          esac
+          ssh -T \
+            -i ~/.ssh/id_rsa \
+            -p "$SSH_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "bash --noprofile --norc -se -- ${MODE} /home/gltr/www/gloria-test /home/gltr/private/west-africa-test" \
+            < wa-workflow/scripts/prepare-west-africa-test-private.sh
+
       - name: Backup current Sakura test files
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           ssh \
@@ -94,10 +156,17 @@ jobs:
             -p "$SSH_PORT" \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            'bash -se' <<'REMOTE'
+            'bash --noprofile --norc -se' <<'REMOTE'
           set -euo pipefail
           TEST_PATH='/home/gltr/www/gloria-test'
-          BACKUP_BASE='/home/gltr/www/_backups'
+          BACKUP_BASE='/home/gltr/backups/site'
+          PRIVATE_PATH='/home/gltr/private/west-africa-test'
+          case "$PRIVATE_PATH" in
+            "$TEST_PATH"|"$TEST_PATH"/*)
+              echo "Private data directory is inside the web root. Deployment stopped."
+              exit 1
+              ;;
+          esac
           TS="$(date +%Y%m%d-%H%M%S)"
           BACKUP_PATH="$BACKUP_BASE/gloria-test-before-$TS"
 
@@ -125,11 +194,13 @@ jobs:
           REMOTE
 
       - name: Deploy selected ref to Sakura test
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           rsync -avz \
             --exclude='.git*' \
             --exclude='.github' \
+            --exclude='/wa-workflow/' \
             --exclude='admin/.htpasswd' \
             --exclude='admin/password.txt' \
             --exclude='/frontend/data/vehicles.json' \
@@ -142,26 +213,52 @@ jobs:
             "$SSH_USER@$SSH_HOST:$SAKURA_TEST_PATH/"
 
       - name: Publish root symlinks for Sakura
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
-          ssh \
+          set +x
+          ssh -T \
             -i ~/.ssh/id_rsa \
             -p "$SSH_PORT" \
+            -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            "bash '$SAKURA_TEST_PATH/scripts/sakura-publish-links.sh' '$SAKURA_TEST_PATH'"
+            'bash --noprofile --norc -se' <<'REMOTE'
+          set -euo pipefail
+          WEB='/home/gltr/www/gloria-test'
+          PRIV='/home/gltr/private/west-africa-test'
+          case "$PRIV" in
+            "$WEB"|"$WEB"/*)
+              echo "Private data directory is inside the web root."
+              exit 1
+              ;;
+          esac
+          if [ -e "$WEB/private" ]; then
+            echo "Web root contains a private directory."
+            exit 1
+          fi
+          bash "$WEB/scripts/sakura-publish-links.sh" "$WEB"
+          REMOTE
 
       - name: Validate deployed PHP syntax
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
-          ssh \
+          set +x
+          ssh -T \
             -i ~/.ssh/id_rsa \
             -p "$SSH_PORT" \
+            -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             "$SSH_USER@$SSH_HOST" \
-            "set -e; php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'; php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'"
+            'bash --noprofile --norc -se' <<REMOTE
+          set -euo pipefail
+          php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'
+          php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'
+          REMOTE
 
       - name: Smoke test gloria-test site
+        if: ${{ inputs.private_data == 'deploy' }}
         run: |
           set -euo pipefail
           sleep 3
@@ -188,7 +285,7 @@ jobs:
                     fwrite(STDERR, "Public vehicle feed has no records.\n");
                     exit(1);
                 }
-                $private = ["quote_spec_data", "export_document_data", "vehicle_certificate_data", "quote_spec_files", "quote_image_files", "vehicle_certificate_files"];
+                $private = ["quote_spec_data", "export_document_data", "vehicle_certificate_data", "quote_spec_files", "quote_image_files", "vehicle_certificate_files", "basis_from", "basis_to", "disclaimer_short", "auction_price_jpy", "target_price_usd", "customer_name", "chassis_no"];
                 foreach ($data["vehicles"] as $record) {
                     if (!is_array($record)) {
                         exit(1);
@@ -206,6 +303,11 @@ jobs:
           expect_status 403 "$BASE_URL/frontend/data/vehicles.json"
           expect_status 403 "$BASE_URL/data/backup/probe.json"
           expect_status 403 "$BASE_URL/frontend/data/backup/probe.json"
+          expect_status 403 "$BASE_URL/uploads/quotes/probe.pdf"
+          expect_status 403 "$BASE_URL/uploads/certificates/probe.pdf"
+          expect_status 403 "$BASE_URL/uploads/general/probe.pdf"
+          expect_status 404 "$BASE_URL/private/west-africa-test/vehicles.json"
+          expect_status 404 "https://gltr.sakura.ne.jp/private/west-africa-test/vehicles.json"
           expect_status 404 "$BASE_URL/admin/health.php"
           expect_status 404 "$BASE_URL/admin/index.php?diag=1"
           expect_status 200 "$BASE_URL/admin/"

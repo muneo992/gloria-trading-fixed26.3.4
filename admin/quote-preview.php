@@ -10,6 +10,7 @@ if (empty($_SESSION['admin_logged_in'])) {
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/vehicle-data.php';
+require_once __DIR__ . '/private-files.php';
 
 function h($value): string
 {
@@ -40,6 +41,9 @@ function file_url(string $path): string
     }
     if (preg_match('/^https?:\/\//', $path)) {
         return $path;
+    }
+    if (preg_match('#^uploads/#', $path)) {
+        return gt_private_file_url($path);
     }
     return '../' . ltrim($path, '/');
 }
