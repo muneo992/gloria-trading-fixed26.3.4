@@ -109,14 +109,14 @@ static_script_audit() {
   local line
   while IFS= read -r line; do
     case "$line" in
-      *'rm -f -- "$tmp"'*|*'rm -f -- "$LIST_FILE"'*) ;;
+      *'rm -f -- "$tmp"'*|*'rm -f -- "$LIST_FILE"'*|*'rm -f -- "$MERGE_FILE"'*|*'rm -f -- "$PHP_FILE"'*|*'rm -f -- "$img_tmp"'*|*'rm -f -- "$out" "$err"'*) ;;
       *) fail "prepare script removes an unexpected path" ;;
     esac
   done < <(grep -n 'rm ' "$PREPARE" || true)
   if grep -n -- '--delete' "$WORKFLOW" >/dev/null; then
     fail "test workflow contains --delete"
   fi
-  if ! grep -F -q 'deploy:DEPLOY_TEST|prepare:PREPARE_WA_TEST_PRIVATE|rollback:ROLLBACK_WA_TEST_PRIVATE' "$WORKFLOW"; then
+  if ! grep -F -q 'deploy:DEPLOY_TEST|prepare:PREPARE_WA_TEST_PRIVATE|rollback:ROLLBACK_WA_TEST_PRIVATE|append-missing:APPEND_WA_TEST_MISSING' "$WORKFLOW"; then
     fail "test workflow confirmation pairing is missing"
   fi
   if ! grep -F -q 'bash --noprofile --norc -se' "$WORKFLOW"; then
@@ -424,6 +424,75 @@ STATUS="$(run_script prepare "/home/gltr/www/gloria-test" "/home/gltr/private/we
 
 cleanup
 rm -f -- "$OUT" "$ERR"
+BASE=""
+
+BASE="$(mktemp -d)"
+WEB="$BASE/web"
+PRIV="$BASE/priv-parent/store"
+PROD="$BASE/prod"
+mkdir -p "$WEB/frontend/data" "$WEB/frontend/images/vehicles" "$PRIV/archive" "$PROD/frontend/data" "$PROD/frontend/images/vehicles"
+php -r '
+  $test = ["vehicles" => [[
+    "ref_id" => "REF-001",
+    "make" => "Toyota",
+    "quote_spec_data" => ["auction_price_jpy" => "SECRET-AUCTION-MARKER"],
+  ]]];
+  $prod = ["vehicles" => [
+    $test["vehicles"][0],
+    ["ref_id" => "REF-020", "make" => "Toyota", "model" => "RAV4", "gallery" => ["images/vehicles/REF-020-kept.jpg", "images/vehicles/REF-020-new.jpg"]],
+  ]];
+  $prod["vehicles"][0]["quote_spec_data"]["auction_price_jpy"] = "OTHER-MARKER";
+  file_put_contents($argv[1], json_encode($test));
+  file_put_contents($argv[2], json_encode($prod));
+  file_put_contents($argv[3], "{\"vehicles\":[]}");
+' "$PRIV/vehicles.json" "$PROD/frontend/data/vehicles.json" "$WEB/frontend/data/vehicles.json" >/dev/null
+printf '%s' 'keep-existing' >"$WEB/frontend/images/vehicles/REF-020-kept.jpg"
+printf '%s' 'prod-different' >"$PROD/frontend/images/vehicles/REF-020-kept.jpg"
+printf '%s' 'prod-new' >"$PROD/frontend/images/vehicles/REF-020-new.jpg"
+PROD_HASH="$(php -r 'echo hash_file("sha256", $argv[1]);' "$PROD/frontend/data/vehicles.json")"
+PUBLIC_HASH="$(php -r 'echo hash_file("sha256", $argv[1]);' "$WEB/frontend/data/vehicles.json")"
+OUT="$BASE/out"
+ERR="$BASE/err"
+set +e
+GLORIA_APPEND_FIXTURE=1 bash "$PREPARE" append-missing "$WEB" "$PRIV" "$PROD" >"$OUT" 2>"$ERR"
+STATUS=$?
+set -e
+assert_clean "$OUT"
+assert_clean "$ERR"
+if grep -F -q 'SECRET-AUCTION-MARKER' "$OUT" "$ERR"; then
+  fail "append output contained a private marker"
+fi
+[ "$STATUS" = "0" ] || fail "append missing vehicles failed"
+require_line "$OUT" "appended=1"
+require_line "$OUT" "appended_ref=REF-020"
+require_line "$OUT" "images_copied=1"
+require_line "$OUT" "images_kept=1"
+require_line "$OUT" "private_vehicles=2"
+require_line "$OUT" "append_ok"
+cmp -s "$WEB/frontend/images/vehicles/REF-020-kept.jpg" <(printf '%s' 'keep-existing') || fail "append replaced an existing image"
+cmp -s "$WEB/frontend/images/vehicles/REF-020-new.jpg" "$PROD/frontend/images/vehicles/REF-020-new.jpg" || fail "append did not copy a missing image"
+[ "$(php -r 'echo hash_file("sha256", $argv[1]);' "$PROD/frontend/data/vehicles.json")" = "$PROD_HASH" ] || fail "append changed the production master"
+[ "$(php -r 'echo hash_file("sha256", $argv[1]);' "$WEB/frontend/data/vehicles.json")" = "$PUBLIC_HASH" ] || fail "append changed the public test master"
+php -r '
+  $data = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+  $ids = array_column($data["vehicles"], "ref_id");
+  $kept = $data["vehicles"][0]["quote_spec_data"]["auction_price_jpy"] ?? "";
+  if ($ids !== ["REF-001", "REF-020"] || $kept !== "SECRET-AUCTION-MARKER") {
+    exit(1);
+  }
+' "$PRIV/vehicles.json" >/dev/null || fail "append changed an existing vehicle or dropped the new one"
+set +e
+GLORIA_APPEND_FIXTURE=1 bash "$PREPARE" append-missing "$WEB" "$PRIV" "$PROD" >"$OUT" 2>"$ERR"
+STATUS=$?
+set -e
+[ "$STATUS" = "1" ] || fail "second append should stop when nothing is missing"
+require_line "$ERR" "append_none"
+php -r '
+  $data = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+  exit(count($data["vehicles"]) === 2 ? 0 : 1);
+' "$PRIV/vehicles.json" >/dev/null || fail "second append changed the vehicle count"
+
+cleanup
 BASE=""
 
 printf '%s\n' "prepare script checks passed"
