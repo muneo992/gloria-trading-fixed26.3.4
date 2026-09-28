@@ -35,7 +35,7 @@ class Page(HTMLParser):
     def handle_data(self, data):
         self.text.append(data)
 
-html_pages = list(ROOT.glob('*.html'))
+html_pages = [path for path in ROOT.glob('*.html') if path.name != 'site-suspended.html']
 assert html_pages, 'No South Africa HTML pages'
 for path in html_pages:
     raw = path.read_text(encoding='utf-8')
@@ -84,6 +84,38 @@ for loc in ET.parse(ROOT / 'sitemap.xml').iter('{http://www.sitemaps.org/schemas
     assert (ROOT / (urlsplit(loc.text).path.lstrip('/') or 'index.html')).is_file()
 
 robots = (ROOT / 'robots.txt').read_text(encoding='utf-8')
-assert 'https://sa.gloriatrading.com/sitemap.xml' in robots
+assert 'Disallow: /' in robots
+assert 'Sitemap:' not in robots
+assert not re.search(r'(?m)^Allow:', robots)
 
-print(f'SA checks passed: {len(html_pages)} pages, {len(vehicles)} example types.')
+suspension = (ROOT / 'site-suspended.html').read_text(encoding='utf-8')
+for line in ('Gloria Trading', 'South Africa Site', 'This site is currently under review.', 'noindex, nofollow'):
+    assert line in suspension, line
+assert len(re.findall(r'<h1[\s>]', suspension)) == 1
+assert re.search(r'RHD|PHEV|\bEV\b|Uber|auction|import|WhatsApp|vehicle', suspension, re.I) is None
+
+preserved = [
+    'index.html', 'vehicles.html', 'vehicle-detail.html', 'about.html', 'contact.html',
+    'request.html', 'how-to-buy.html', 'sitemap.xml', 'js/sa.js', 'data/vehicles.json',
+    'data/vehicle-feed.php', 'admin/index.php', 'admin/edit.php', 'admin/bootstrap.php',
+    'lib/admin-auth.php', 'lib/vehicle-store.php',
+]
+for name in preserved:
+    assert (ROOT / name).is_file(), name
+assert 'RHD EV' in (ROOT / 'index.html').read_text(encoding='utf-8')
+
+htaccess = (ROOT / '.htaccess').read_text(encoding='utf-8')
+suspension_rule = htaccess.find('RewriteRule ^ /site-suspended.html [END]')
+feed_rule = htaccess.find('RewriteRule ^data/vehicles\\.json$ data/vehicle-feed.php [L]')
+assert suspension_rule >= 0 and 'RewriteRule ^robots\\.txt$ - [END]' in htaccess
+assert feed_rule >= 0 and suspension_rule < feed_rule
+assert 'ErrorDocument 403 /site-suspended.html' in htaccess
+assert 'Header set X-Robots-Tag "noindex, nofollow"' in htaccess
+assert '(?i)^(vehicles\\.json|vehicle-feed\\.php|vehicle-image\\.php)$' in htaccess
+assert 'Require all denied' in (ROOT / 'admin/.htaccess').read_text(encoding='utf-8')
+image_htaccess = (ROOT / 'images/.htaccess').read_text(encoding='utf-8')
+image_suspension = image_htaccess.find('RewriteRule ^ /site-suspended.html [END]')
+image_feed = image_htaccess.find('/data/vehicle-image.php')
+assert image_suspension >= 0 and image_feed >= 0 and image_suspension < image_feed
+
+print(f'SA checks passed: {len(html_pages)} preserved pages, {len(vehicles)} example types, public site suspended.')

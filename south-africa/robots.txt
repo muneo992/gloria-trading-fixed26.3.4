@@ -1,4 +1,2 @@
 User-agent: *
-Allow: /
-Disallow: /admin/
-Sitemap: https://sa.gloriatrading.com/sitemap.xml
+Disallow: /

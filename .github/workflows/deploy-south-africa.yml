@@ -109,17 +109,21 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/ -o /tmp/sa-home.html
-          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/vehicles.html -o /tmp/sa-vehicles.html
-          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/data/vehicles.json -o /tmp/sa-vehicles.json
-          grep -q 'RHD EV' /tmp/sa-home.html
-          grep -q 'Import requirements must be confirmed before shipment' /tmp/sa-home.html
-          python3 - <<'PY'
-          import json
-          data=json.load(open("/tmp/sa-vehicles.json",encoding="utf-8"))
-          assert "vehicles" in data and len(data["vehicles"])>=1
-          print("public_json_vehicles", len(data["vehicles"]))
-          PY
-          echo 'public_urls=ok'
+          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/robots.txt -o /tmp/sa-robots.txt
+          grep -q 'Gloria Trading' /tmp/sa-home.html
+          grep -q 'South Africa Site' /tmp/sa-home.html
+          grep -q 'This site is currently under review.' /tmp/sa-home.html
+          grep -q 'noindex, nofollow' /tmp/sa-home.html
+          grep -q '^Disallow: /$' /tmp/sa-robots.txt
+          if grep -q 'RHD EV' /tmp/sa-home.html; then
+            echo 'South Africa sales page is still public'
+            exit 1
+          fi
+          if grep -q '^Allow:' /tmp/sa-robots.txt || grep -q 'Sitemap:' /tmp/sa-robots.txt; then
+            echo 'robots.txt still publishes the South Africa site'
+            exit 1
+          fi
+          echo 'public_urls=suspended_ok'
 
       - name: Remove SSH key
         if: always()
@@ -154,8 +158,18 @@ jobs:
           test "$SA_PATH" != /home/gltr/www/gloria-ea
           test "$SA_PATH" != /home/gltr/www/gloria-site
           test -f south-africa/index.html
+          test -f south-africa/site-suspended.html
           test -f south-africa/data/vehicles.json
           test -f south-africa/js/sa.js
+          test -f south-africa/admin/index.php
+          grep -q 'noindex, nofollow' south-africa/site-suspended.html
+          grep -q 'This site is currently under review.' south-africa/site-suspended.html
+          grep -q 'Disallow: /' south-africa/robots.txt
+          grep -q 'RHD EV' south-africa/index.html
+          if grep -q 'RHD EV' south-africa/site-suspended.html; then
+            echo 'suspension page contains sales wording'
+            exit 1
+          fi
           test -z "$(find south-africa -type l -print -quit)"
           node --check south-africa/js/sa.js
           node scripts/check-south-africa.js
@@ -221,13 +235,54 @@ jobs:
       - name: Verify South Africa public pages
         run: |
           set -euo pipefail
-          for PAGE in '' vehicles.html how-to-buy.html about.html contact.html request.html vehicle-detail.html css/base.css css/sa.css js/sa.js images/gloria-trading-logo.jpg data/vehicles.json robots.txt sitemap.xml; do
-            curl --fail --silent --show-error --max-time 30 "https://sa.gloriatrading.com/$PAGE" -o /dev/null
+          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/robots.txt -o /tmp/sa-robots.txt
+          grep -q '^Disallow: /$' /tmp/sa-robots.txt
+          if grep -q '^Allow:' /tmp/sa-robots.txt || grep -q 'Sitemap:' /tmp/sa-robots.txt; then
+            echo 'robots.txt still publishes the South Africa site'
+            exit 1
+          fi
+          for PAGE in \
+            '' \
+            site-suspended.html \
+            vehicles.html \
+            how-to-buy.html \
+            about.html \
+            contact.html \
+            request.html \
+            vehicle-detail.html \
+            admin/ \
+            admin/index.php \
+            admin/edit.php \
+            data/vehicles.json \
+            data/vehicle-feed.php \
+            data/vehicle-image.php \
+            sitemap.xml \
+            css/base.css \
+            css/sa.css \
+            js/sa.js \
+            images/gloria-trading-logo.jpg
+          do
+            code="$(curl --silent --show-error --max-time 30 -o /tmp/sa-body.html -w '%{http_code}' "https://sa.gloriatrading.com/${PAGE}")"
+            case "$code" in
+              200|403|404) ;;
+              *) echo "unexpected status ${code} for /${PAGE}"; exit 1 ;;
+            esac
+            if grep -q 'RHD EV' /tmp/sa-body.html \
+              || grep -q 'PHEV' /tmp/sa-body.html \
+              || grep -q 'Import requirements must be confirmed before shipment' /tmp/sa-body.html \
+              || grep -q 'South Africa Admin' /tmp/sa-body.html \
+              || grep -q '"vehicles"' /tmp/sa-body.html
+            then
+              echo "South Africa content is still public at /${PAGE}"
+              exit 1
+            fi
+            if [ "$code" = 200 ]; then
+              grep -q 'Gloria Trading' /tmp/sa-body.html
+              grep -q 'South Africa Site' /tmp/sa-body.html
+              grep -q 'This site is currently under review.' /tmp/sa-body.html
+              grep -q 'noindex, nofollow' /tmp/sa-body.html
+            fi
           done
-          curl --fail --silent --show-error --max-time 30 https://sa.gloriatrading.com/ -o /tmp/sa-home.html
-          grep -q 'RHD EV' /tmp/sa-home.html
-          grep -q 'https://sa.gloriatrading.com/' /tmp/sa-home.html
-          grep -q 'Import requirements must be confirmed before shipment' /tmp/sa-home.html
 
       - name: Remove deployment key
         if: always()

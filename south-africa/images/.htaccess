@@ -1,6 +1,9 @@
 Options -Indexes -ExecCGI
 
 RewriteEngine On
+# Temporary suspension. Remove this rule to restore image delivery.
+RewriteRule ^ /site-suspended.html [END]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(SA-[A-Z0-9]+(?:-[A-Z0-9]+)*)/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:jpe?g|png|webp))$ /data/vehicle-image.php?ref=$1&file=$2 [END,QSA,NC]
 

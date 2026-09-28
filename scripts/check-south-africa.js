@@ -18,7 +18,7 @@ function hrefs(html) {
   return refs;
 }
 
-const pages = walkHtml(ROOT);
+const pages = walkHtml(ROOT).filter(file => path.basename(file) !== 'site-suspended.html');
 if (!pages.length) throw new Error('No South Africa HTML pages');
 for (const file of pages) {
   const raw = fs.readFileSync(file, 'utf8');
@@ -77,6 +77,49 @@ for (const loc of locs) {
 }
 
 const robots = fs.readFileSync(path.join(ROOT, 'robots.txt'), 'utf8');
-if (!robots.includes('https://sa.gloriatrading.com/sitemap.xml')) throw new Error('robots');
+if (!robots.includes('Disallow: /')) throw new Error('robots disallow');
+if (/^Allow:/m.test(robots) || robots.includes('Sitemap:')) throw new Error('robots still publishes the site');
 
-console.log(`SA checks passed: ${pages.length} pages, ${vehicles.length} example types.`);
+const suspension = fs.readFileSync(path.join(ROOT, 'site-suspended.html'), 'utf8');
+for (const line of ['Gloria Trading', 'South Africa Site', 'This site is currently under review.', 'noindex, nofollow']) {
+  if (!suspension.includes(line)) throw new Error(`suspension page missing ${line}`);
+}
+if ((suspension.match(/<h1[\s>]/g) || []).length !== 1) throw new Error('suspension h1');
+if (/RHD|PHEV|\bEV\b|Uber|auction|import|WhatsApp|vehicle/i.test(suspension)) {
+  throw new Error('suspension page contains sales wording');
+}
+
+const preserved = [
+  'index.html', 'vehicles.html', 'vehicle-detail.html', 'about.html', 'contact.html',
+  'request.html', 'how-to-buy.html', 'sitemap.xml', 'js/sa.js', 'data/vehicles.json',
+  'data/vehicle-feed.php', 'admin/index.php', 'admin/edit.php', 'admin/bootstrap.php',
+  'lib/admin-auth.php', 'lib/vehicle-store.php'
+];
+for (const file of preserved) {
+  if (!fs.existsSync(path.join(ROOT, file))) throw new Error(`preserved file missing ${file}`);
+}
+const home = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+if (!home.includes('RHD EV')) throw new Error('original home page is no longer preserved');
+
+const htaccess = fs.readFileSync(path.join(ROOT, '.htaccess'), 'utf8');
+const suspensionRule = htaccess.indexOf('RewriteRule ^ /site-suspended.html [END]');
+const feedRule = htaccess.indexOf('RewriteRule ^data/vehicles\\.json$ data/vehicle-feed.php [L]');
+if (suspensionRule < 0 || !htaccess.includes('RewriteRule ^robots\\.txt$ - [END]')) {
+  throw new Error('suspension rewrite missing');
+}
+if (!htaccess.includes('ErrorDocument 403 /site-suspended.html')) throw new Error('forbidden pages are not suspended');
+if (!htaccess.includes('Header set X-Robots-Tag "noindex, nofollow"')) throw new Error('robots header missing');
+if (!htaccess.includes('(?i)^(vehicles\\.json|vehicle-feed\\.php|vehicle-image\\.php)$')) {
+  throw new Error('vehicle data files are not denied');
+}
+if (feedRule < 0 || suspensionRule > feedRule) throw new Error('vehicle feed is reachable during suspension');
+const adminHtaccess = fs.readFileSync(path.join(ROOT, 'admin', '.htaccess'), 'utf8');
+if (!adminHtaccess.includes('Require all denied')) throw new Error('admin is still granted');
+const imageHtaccess = fs.readFileSync(path.join(ROOT, 'images', '.htaccess'), 'utf8');
+const imageSuspension = imageHtaccess.indexOf('RewriteRule ^ /site-suspended.html [END]');
+const imageFeed = imageHtaccess.indexOf('/data/vehicle-image.php');
+if (imageSuspension < 0 || imageFeed < 0 || imageSuspension > imageFeed) {
+  throw new Error('image delivery is reachable during suspension');
+}
+
+console.log(`SA checks passed: ${pages.length} preserved pages, ${vehicles.length} example types, public site suspended.`);
