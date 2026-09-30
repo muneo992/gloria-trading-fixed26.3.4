@@ -112,7 +112,18 @@ assert feed_rule >= 0 and suspension_rule < feed_rule
 assert 'ErrorDocument 403 /site-suspended.html' in htaccess
 assert 'Header set X-Robots-Tag "noindex, nofollow"' in htaccess
 assert '(?i)^(vehicles\\.json|vehicle-feed\\.php|vehicle-image\\.php)$' in htaccess
-assert 'Require all denied' in (ROOT / 'admin/.htaccess').read_text(encoding='utf-8')
+admin_pass = htaccess.find('RewriteRule ^admin(?:/|$) - [END]')
+assert admin_pass >= 0 and admin_pass < suspension_rule
+admin_htaccess = (ROOT / 'admin/.htaccess').read_text(encoding='utf-8')
+assert not re.search(r'(?m)^Require all denied$', admin_htaccess)
+assert '^(?:bootstrap\\.php)$' in admin_htaccess and 'Require all denied' in admin_htaccess
+image_php = (ROOT / 'admin/image.php').read_text(encoding='utf-8')
+assert 'sa_require_admin();' in image_php
+assert image_php.find('sa_require_admin();') < image_php.find('readfile(')
+for name in ('admin/index.php', 'admin/edit.php'):
+    raw = (ROOT / name).read_text(encoding='utf-8')
+    assert 'src="../' not in raw, name
+    assert 'sa_admin_image_url(' in raw, name
 image_htaccess = (ROOT / 'images/.htaccess').read_text(encoding='utf-8')
 image_suspension = image_htaccess.find('RewriteRule ^ /site-suspended.html [END]')
 image_feed = image_htaccess.find('/data/vehicle-image.php')

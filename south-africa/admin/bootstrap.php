@@ -262,6 +262,17 @@ function sa_require_admin(): void
     }
 }
 
+function sa_admin_image_url(string $path): string
+{
+    $parts = explode('/', str_replace('\\', '/', $path));
+    $file = array_pop($parts);
+    $ref = array_pop($parts);
+    if (!is_string($ref) || !is_string($file) || $ref === '' || $file === '') {
+        return '';
+    }
+    return 'image.php?ref=' . rawurlencode($ref) . '&file=' . rawurlencode($file);
+}
+
 function sa_admin_logout(): void
 {
     $_SESSION = [];

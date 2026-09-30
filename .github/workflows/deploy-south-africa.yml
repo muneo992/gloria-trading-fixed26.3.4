@@ -162,6 +162,12 @@ jobs:
           test -f south-africa/data/vehicles.json
           test -f south-africa/js/sa.js
           test -f south-africa/admin/index.php
+          test -f south-africa/admin/image.php
+          grep -F 'RewriteRule ^admin(?:/|$) - [END]' south-africa/.htaccess
+          if grep -q '^Require all denied$' south-africa/admin/.htaccess; then
+            echo 'admin directory is still fully denied'
+            exit 1
+          fi
           grep -q 'noindex, nofollow' south-africa/site-suspended.html
           grep -q 'This site is currently under review.' south-africa/site-suspended.html
           grep -q 'Disallow: /' south-africa/robots.txt
@@ -250,9 +256,6 @@ jobs:
             contact.html \
             request.html \
             vehicle-detail.html \
-            admin/ \
-            admin/index.php \
-            admin/edit.php \
             data/vehicles.json \
             data/vehicle-feed.php \
             data/vehicle-image.php \
@@ -283,6 +286,52 @@ jobs:
               grep -q 'noindex, nofollow' /tmp/sa-body.html
             fi
           done
+          for PAGE in admin/ admin/index.php; do
+            code="$(curl --silent --show-error --max-time 30 -D /tmp/sa-headers.txt -o /tmp/sa-body.html -w '%{http_code}' "https://sa.gloriatrading.com/${PAGE}")"
+            test "$code" = 200
+            grep -q 'South Africa Admin' /tmp/sa-body.html
+            if grep -q 'Save vehicle' /tmp/sa-body.html || grep -q '"vehicles"' /tmp/sa-body.html; then
+              echo "Unauthenticated admin page exposes vehicle management at /${PAGE}"
+              exit 1
+            fi
+            if ! grep -qi '^x-robots-tag:.*noindex' /tmp/sa-headers.txt; then
+              echo "Admin page is missing noindex at /${PAGE}"
+              exit 1
+            fi
+          done
+          code="$(curl --silent --show-error --max-time 30 -D /tmp/sa-headers.txt -o /tmp/sa-body.html -w '%{http_code}' https://sa.gloriatrading.com/admin/edit.php)"
+          test "$code" = 303
+          if ! grep -qi 'index.php?expired=1' /tmp/sa-headers.txt; then
+            echo 'Unauthenticated editor is not sent to the login page'
+            exit 1
+          fi
+          if grep -q 'Save vehicle' /tmp/sa-body.html || grep -q '"vehicles"' /tmp/sa-body.html; then
+            echo 'Unauthenticated editor exposes vehicle management'
+            exit 1
+          fi
+          code="$(curl --silent --show-error --max-time 30 -D /tmp/sa-headers.txt -o /tmp/sa-body.html -w '%{http_code}' 'https://sa.gloriatrading.com/admin/image.php?ref=SA-TEST&file=front.jpg')"
+          test "$code" = 303
+          if ! grep -qi 'index.php?expired=1' /tmp/sa-headers.txt; then
+            echo 'Unauthenticated image request is not sent to the login page'
+            exit 1
+          fi
+          if grep -q 'Save vehicle' /tmp/sa-body.html; then
+            echo 'Unauthenticated image request exposes admin content'
+            exit 1
+          fi
+          code="$(curl --silent --show-error --max-time 30 -o /tmp/sa-body.html -w '%{http_code}' https://sa.gloriatrading.com/admin/assets/admin.css)"
+          test "$code" = 200
+          grep -q 'South Africa admin' /tmp/sa-body.html
+          if grep -q 'This site is currently under review.' /tmp/sa-body.html; then
+            echo 'Admin stylesheet is still suspended'
+            exit 1
+          fi
+          code="$(curl --silent --show-error --max-time 30 -o /tmp/sa-body.html -w '%{http_code}' https://sa.gloriatrading.com/admin/bootstrap.php)"
+          test "$code" = 403
+          if grep -q 'sa_admin_password_hash' /tmp/sa-body.html || grep -q 'password_hash' /tmp/sa-body.html; then
+            echo 'bootstrap.php source is publicly readable'
+            exit 1
+          fi
 
       - name: Remove deployment key
         if: always()

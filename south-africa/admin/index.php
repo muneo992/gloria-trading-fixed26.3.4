@@ -162,7 +162,7 @@ function sa_admin_price_label(array $vehicle): string
           <tr>
             <td>
               <?php if (!empty($vehicle['gallery'][0])): ?>
-                <img class="vehicle-thumb" src="../<?= sa_h($vehicle['gallery'][0]) ?>" alt="">
+                <img class="vehicle-thumb" src="<?= sa_h(sa_admin_image_url((string)$vehicle['gallery'][0])) ?>" alt="">
               <?php else: ?>
                 <span class="thumb-placeholder">No photo</span>
               <?php endif; ?>

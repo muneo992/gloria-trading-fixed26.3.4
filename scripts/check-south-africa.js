@@ -113,13 +113,28 @@ if (!htaccess.includes('(?i)^(vehicles\\.json|vehicle-feed\\.php|vehicle-image\\
   throw new Error('vehicle data files are not denied');
 }
 if (feedRule < 0 || suspensionRule > feedRule) throw new Error('vehicle feed is reachable during suspension');
+const adminPass = htaccess.indexOf('RewriteRule ^admin(?:/|$) - [END]');
+if (adminPass < 0 || adminPass > suspensionRule) throw new Error('admin is still sent to the suspension page');
 const adminHtaccess = fs.readFileSync(path.join(ROOT, 'admin', '.htaccess'), 'utf8');
-if (!adminHtaccess.includes('Require all denied')) throw new Error('admin is still granted');
+if (/^Require all denied$/m.test(adminHtaccess)) throw new Error('admin directory is fully denied');
+if (!adminHtaccess.includes('^(?:bootstrap\\.php)$') || !adminHtaccess.includes('Require all denied')) {
+  throw new Error('bootstrap.php direct access is not denied');
+}
 const imageHtaccess = fs.readFileSync(path.join(ROOT, 'images', '.htaccess'), 'utf8');
 const imageSuspension = imageHtaccess.indexOf('RewriteRule ^ /site-suspended.html [END]');
 const imageFeed = imageHtaccess.indexOf('/data/vehicle-image.php');
 if (imageSuspension < 0 || imageFeed < 0 || imageSuspension > imageFeed) {
   throw new Error('image delivery is reachable during suspension');
+}
+const imagePhp = fs.readFileSync(path.join(ROOT, 'admin', 'image.php'), 'utf8');
+if (!imagePhp.includes('sa_require_admin();')) throw new Error('admin image endpoint is not authenticated');
+if (imagePhp.indexOf('sa_require_admin();') > imagePhp.indexOf('readfile(')) {
+  throw new Error('admin image endpoint reads a file before authentication');
+}
+for (const file of ['admin/index.php', 'admin/edit.php']) {
+  const raw = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  if (raw.includes('src="../')) throw new Error(`${file} still uses a public image URL`);
+  if (!raw.includes('sa_admin_image_url(')) throw new Error(`${file} does not use the admin image URL`);
 }
 
 console.log(`SA checks passed: ${pages.length} preserved pages, ${vehicles.length} example types, public site suspended.`);

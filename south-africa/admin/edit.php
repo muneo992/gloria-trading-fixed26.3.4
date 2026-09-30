@@ -221,7 +221,7 @@ $galleryTokens = array_map(static fn(string $path): string => 'old:' . $path, $g
       <div id="gallery-list" class="gallery-admin" aria-live="polite">
         <?php foreach ($gallery as $index => $path): ?>
           <article class="gallery-admin-item" data-token="old:<?= sa_h($path) ?>">
-            <img src="../<?= sa_h($path) ?>" alt="">
+            <img src="<?= sa_h(sa_admin_image_url($path)) ?>" alt="">
             <div><strong class="gallery-position"><?= $index === 0 ? 'Main photo' : 'Photo ' . ($index + 1) ?></strong><span><?= sa_h(basename($path)) ?></span></div>
             <div class="gallery-actions">
               <button class="button button-small button-secondary move-up" type="button">Move up</button>

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/south-africa/lib/vehicle-store.php';
 require_once dirname(__DIR__) . '/south-africa/lib/admin-auth.php';
+require_once dirname(__DIR__) . '/south-africa/admin/bootstrap.php';
 
 $temp = sys_get_temp_dir() . '/gloria-sa-admin-test-' . bin2hex(random_bytes(4));
 putenv('GLORIA_SA_DATA_DIR=' . $temp);
@@ -124,6 +125,17 @@ try {
     fwrite(STDERR, "Second bootstrap was accepted\n");
     exit(1);
 } catch (Throwable $exception) {
+}
+
+$imageUrl = sa_admin_image_url('images/SA-TEST-001/front.jpg');
+if ($imageUrl !== 'image.php?ref=SA-TEST-001&file=front.jpg' || str_contains($imageUrl, '..') || str_contains($imageUrl, '/images/')) {
+    fwrite(STDERR, "Admin image URL is not private to /admin/\n");
+    exit(1);
+}
+$imageEndpoint = file_get_contents(dirname(__DIR__) . '/south-africa/admin/image.php');
+if (!is_string($imageEndpoint) || !str_contains($imageEndpoint, 'sa_require_admin();') || strpos($imageEndpoint, 'sa_require_admin();') > strpos($imageEndpoint, 'readfile(')) {
+    fwrite(STDERR, "Admin image endpoint is not authenticated\n");
+    exit(1);
 }
 
 $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($temp, FilesystemIterator::SKIP_DOTS));

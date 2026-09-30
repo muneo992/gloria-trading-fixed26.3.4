@@ -3,8 +3,8 @@ Options -Indexes
 # sa-public-suspension-start
 # Temporary public suspension for https://sa.gloriatrading.com/
 # Existing pages, data, and the admin app stay in this directory.
-# To publish the site again, restore this file, robots.txt,
-# admin/.htaccess, and images/.htaccess from the previous revision.
+# To publish the site again, remove this block and restore robots.txt
+# and images/.htaccess. /admin/ stays on its own login.
 DirectoryIndex site-suspended.html
 ErrorDocument 403 /site-suspended.html
 
@@ -19,6 +19,8 @@ ErrorDocument 403 /site-suspended.html
 RewriteEngine On
 RewriteRule ^robots\.txt$ - [END]
 RewriteRule ^site-suspended\.html$ - [END]
+# Authenticated admin only. Public pages, data, and images stay suspended.
+RewriteRule ^admin(?:/|$) - [END]
 RewriteRule ^ /site-suspended.html [END]
 # sa-public-suspension-end
 

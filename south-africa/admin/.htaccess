@@ -1,10 +1,8 @@
 Options -Indexes
 DirectoryIndex index.php
 
-# Temporary: the admin app stays on disk but is not publicly reachable.
-# Remove this directive when restoring the South Africa site.
-Require all denied
-
+# Direct HTTP access to the shared bootstrap stays closed.
+# The admin pages include this file from disk.
 <FilesMatch "^(?:bootstrap\.php)$">
   Require all denied
 </FilesMatch>
