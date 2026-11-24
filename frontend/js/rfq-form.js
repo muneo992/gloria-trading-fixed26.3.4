@@ -138,6 +138,7 @@ document.addEventListener("DOMContentLoaded", function() {
         fob.value = "FOB UAE";
         fob.textContent = "FOB UAE";
         const tradeTerm = document.getElementById("trade_term");
+        tradeTerm.querySelector('option[value="C&F"]').textContent = "C&F (CFR)";
         const destination = document.getElementById("destination");
         const requirePort = () => { destination.required = ["C&F", "CIF"].includes(tradeTerm.value); };
         tradeTerm.addEventListener("change", requirePort);
