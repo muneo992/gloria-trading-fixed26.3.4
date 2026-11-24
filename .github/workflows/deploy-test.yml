@@ -266,8 +266,13 @@ jobs:
         if: ${{ inputs.private_data == 'deploy' && inputs.verify_lhd }}
         run: |
           set -euo pipefail
-          ssh -T -i ~/.ssh/id_rsa -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" 'php -d display_errors=0 -d log_errors=0' < scripts/check-sakura-lhd.php
+          if ! ssh -T -i ~/.ssh/id_rsa -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'php -d display_errors=0 -d log_errors=0' \
+            < scripts/check-sakura-lhd.php | tee "$RUNNER_TEMP/sakura-lhd-result"; then
+            STATUS="$(grep -E '^(verification_failed=|verification_cleanup_failed)' "$RUNNER_TEMP/sakura-lhd-result" | head -n 1 || true)"
+            echo "::error::${STATUS:-Sakura verification did not start or returned no status.}"
+            exit 1
+          fi
 
       - name: Smoke test gloria-test site
         if: ${{ inputs.private_data == 'deploy' }}

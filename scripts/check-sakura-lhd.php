@@ -19,9 +19,9 @@ function verify(bool $condition, string $label): void
     }
 }
 
-function request(string $path, array|string|null $post = null, string $cookie = ''): array
+function request(string $path, array|string|null $post = null, string $cookie = '', string $base = SITE): array
 {
-    $session = curl_init(SITE . $path);
+    $session = curl_init($base . $path);
     curl_setopt_array($session, [
         CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_TIMEOUT => 18,
         CURLOPT_FOLLOWLOCATION => false, CURLOPT_COOKIE => $cookie,
@@ -37,6 +37,88 @@ function request(string $path, array|string|null $post = null, string $cookie = 
         'headers' => substr($response, 0, $size),
         'body' => substr($response, $size),
     ];
+}
+
+function login(string $password, string $base = SITE): array
+{
+    $response = request('/admin/index.php', http_build_query(['action' => 'login', 'password' => $password]), '', $base);
+    verify(preg_match('/^Set-Cookie:\s*((?:ENC_)?PHPSESSID=[^;\r\n]+)/mi', $response['headers'], $match) === 1, 'session_cookie');
+    return [$response, $match[1]];
+}
+
+function verifyRhdSave(string $parent): void
+{
+    $root = $parent . '/rhd-fixture';
+    verify(mkdir($root, 0700), 'rhd_fixture_directory');
+    $master = $root . '/vehicles.json';
+    $records = [];
+    for ($index = 1; $index <= 26; $index++) {
+        $records[] = [
+            'ref_id' => 'QA-' . $index, 'display_name_en' => 'Synthetic ' . $index,
+            'make' => 'Example', 'model' => 'Fixture', 'year' => 2020,
+        ];
+    }
+    verify(file_put_contents($master, json_encode(['vehicles' => $records], JSON_THROW_ON_ERROR)) !== false, 'rhd_fixture_master');
+    $loopback = stream_socket_server('tcp://127.0.0.1:0');
+    verify(is_resource($loopback), 'rhd_loopback_socket');
+    $address = stream_socket_get_name($loopback, false);
+    fclose($loopback);
+    verify(is_string($address) && str_starts_with($address, '127.0.0.1:'), 'rhd_loopback_address');
+    $base = 'http://' . $address;
+    $password = bin2hex(random_bytes(18));
+    $server = proc_open(
+        [PHP_BINARY, '-d', 'session.save_path=' . $root, '-S', $address, '-t', WEB],
+        [0 => ['file', '/dev/null', 'r'], 1 => ['file', $root . '/server.log', 'a'], 2 => ['file', $root . '/server.log', 'a']],
+        $pipes,
+        WEB,
+        [...getenv(), 'GLORIA_WA_DATA_DIR' => $root, 'GLORIA_ADMIN_PASSWORD' => $password]
+    );
+    try {
+        verify(is_resource($server), 'rhd_fixture_server');
+        $port = (int) substr($address, strlen('127.0.0.1:'));
+        for ($i = 0; $i < 30; $i++) {
+            $socket = @fsockopen('127.0.0.1', $port, $errno, $error, 0.2);
+            if (is_resource($socket)) {
+                fclose($socket);
+                break;
+            }
+            usleep(100000);
+        }
+        verify($i < 30, 'rhd_fixture_server_ready');
+        [$response, $cookie] = login($password, $base);
+        verify(str_contains($response['body'], 'QA-26'), 'rhd_fixture_admin_list');
+        $edit = '/admin/edit.php?ref=QA-1';
+        $attachment = $root . '/synthetic.txt';
+        verify(file_put_contents($attachment, "Synthetic quotation attachment\n") !== false, 'rhd_fixture_attachment');
+        $status = request($edit, [
+            'action' => 'save', 'upload_mode' => 'both', 'ref_id' => 'QA-1',
+            'display_name_en' => 'Synthetic edited', 'year' => '2020',
+            'make' => 'Example', 'model' => 'Fixture', 'reference_price_usd' => '4321',
+            'gallery_json' => '[]', 'quote_spec_files_json' => '[]', 'quote_image_files_json' => '[]',
+            'vehicle_certificate_files_json' => '[]',
+            'quote_spec_files[0]' => new CURLFile($attachment, 'text/plain'),
+        ], $cookie, $base);
+        verify(in_array($status['status'], [302, 303], true) && str_contains($status['headers'], 'saved=1'), 'rhd_save_redirect');
+        $saved = json_decode(file_get_contents($master), true, 512, JSON_THROW_ON_ERROR)['vehicles'];
+        verify(count($saved) === 26 && $saved[0]['display_name_en'] === 'Synthetic edited', 'rhd_save_result');
+        verify(count($saved[0]['quote_spec_files'] ?? []) === 1, 'rhd_attachment_saved');
+        verify(count(glob($root . '/backups/*.json') ?: []) === 1, 'rhd_save_backup');
+    } finally {
+        if (is_resource($server)) {
+            proc_terminate($server);
+            proc_close($server);
+        }
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($files as $file) {
+            $path = $file->getPathname();
+            verify($file->isDir() && !$file->isLink() ? rmdir($path) : unlink($path), 'rhd_fixture_cleanup');
+        }
+        verify(rmdir($root), 'rhd_fixture_directory_cleanup');
+    }
+    echo 'rhd_isolated_26_save_redirect_and_backup_ok' . PHP_EOL;
 }
 
 function fields(string $path, string $cookie): array
@@ -99,10 +181,8 @@ try {
     $phase = 'admin_login';
     $password = getConfiguredAdminPassword();
     verify($password !== '', 'test_admin_password_unavailable');
-    $login = request('/admin/index.php', http_build_query(['action' => 'login', 'password' => $password]));
+    [$login, $cookie] = login($password);
     unset($password);
-    verify(preg_match('/^Set-Cookie:\s*(PHPSESSID=[^;\r\n]+)/mi', $login['headers'], $match) === 1, 'session_cookie');
-    $cookie = $match[1];
     verify(str_contains($login['body'], 'LHD調達候補'), 'rhd_admin_authenticated');
     $new = ADMIN . '?ref=';
     $inputs = fields($new, $cookie);
@@ -162,6 +242,8 @@ try {
     verify(!inFeed($ref) && request($image)['status'] === 404, 'expiry_hidden');
     echo 'lhd_publish_stop_expiry_ok' . PHP_EOL;
     verify(hash('sha256', request('/data/vehicles.json')['body']) === hash('sha256', $rhd['body']), 'rhd_feed_changed');
+    $phase = 'rhd_isolated_save';
+    verifyRhdSave($backup);
     $success = true;
 } catch (Throwable $error) {
     // Only our status labels may appear in Actions logs.
