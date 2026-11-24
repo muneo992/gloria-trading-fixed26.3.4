@@ -133,6 +133,27 @@ try {
     assert.equal((await save(edit, { ...current, action: "stop" })).status, 303);
     assert.deepEqual(await vehicleList(), []);
     assert.equal((await request(feed + image + ref)).status, 404);
+    const restored = join(sandbox, "restored");
+    const exerciseBackup = `
+        require 'admin/lhd-vehicle-data.php';
+        $source = dirname($argv[1]);
+        $root = gt_lhd_backup_root($source);
+        foreach (glob($root . '/snapshot-*') as $snapshot) {
+            $record = gt_lhd_read($snapshot)[$argv[3]] ?? [];
+            if (!gt_lhd_eligible($record, $argv[4])) continue;
+            $before = hash_file('sha256', $argv[1]);
+            $restored = gt_lhd_restore_copy($snapshot, $argv[2]);
+            if (!gt_lhd_eligible($restored[$argv[3]], $argv[4]) || !gt_lhd_image_path($argv[2], $record)
+                || $before !== hash_file('sha256', $argv[1])) exit(2);
+            $old = $root . '/snapshot-20000101T000000Z-123456abcdef';
+            if (!rename($snapshot, $old)) exit(3);
+            gt_lhd_backup($source, gt_lhd_read($source));
+            exit(is_dir($old) ? 4 : 0);
+        }
+        exit(1);
+    `;
+    execFileSync(php, ["-r", exerciseBackup, master, restored, ref, today], { cwd: repo });
+    assert.equal(JSON.parse(await readFile(join(restored, "lhd-vehicles.json"), "utf8")).vehicles[ref].published, true);
     current = await formFields(edit);
     assert.equal((await save(edit, { ...fixture, ...current, action: "draft", price_mode: "quote", trade_term: "CIF" })).status, 303);
     current = await formFields(edit);
@@ -155,7 +176,7 @@ try {
     const failure = await request(feed);
     assert.equal(failure.status, 503);
     assert.deepEqual((await failure.json()).vehicles, []);
-    console.log("PASS: LHD empty, draft, publish, pricing, image access, expiry, stop, conflicts, CSRF and failure isolation");
+    console.log("PASS: LHD publication, image boundaries, expiry, CSRF, conflicts, snapshot recovery and 30-day retention");
 } finally {
     server.kill();
     await stopped;

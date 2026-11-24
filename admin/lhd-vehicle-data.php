@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/lhd-backups.php';
 
 const GT_LHD_TRADE_TERMS = ['FOB', 'CFR', 'CIF'];
 const GT_LHD_CURRENCIES = ['USD', 'AED', 'EUR', 'JPY'];
@@ -16,8 +17,12 @@ function gt_lhd_directory(bool $create = false): ?string
     }
     $real = realpath($base);
     $site = gt_wa_site_root();
+    $expected = gt_wa_private_dir_for_site($site);
+    $requestPath = $_SERVER['REQUEST_URI'] ?? '';
     $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
-    if ($real === false || gt_wa_path_is_under($real, $site)
+    if ($real === false || ($expected !== null && ($base !== $expected || $real !== $expected))
+        || (preg_match('#^/gloria-test(?:/|\?|$)#', $requestPath) && $expected !== null && $site !== '/home/gltr/www/gloria-test')
+        || gt_wa_path_is_under($real, $site)
         || (str_starts_with($site, '/home/gltr/www/') && gt_wa_path_is_under($real, '/home/gltr/www'))
         || ($documentRoot !== '' && gt_wa_path_is_under($real, $documentRoot))) {
         throw new RuntimeException('Private LHD storage is unavailable.');
@@ -35,11 +40,14 @@ function gt_lhd_read(?string $directory): array
         return [];
     }
     $path = $directory . '/lhd-vehicles.json';
-    if (is_link($path)) {
+    if (is_link($directory) || is_link($path)) {
         throw new RuntimeException('Invalid LHD master.');
     }
     if (!file_exists($path)) {
         return [];
+    }
+    if (!is_file($path) || (stat($path)['nlink'] ?? 0) !== 1) {
+        throw new RuntimeException('Invalid LHD master.');
     }
     $raw = file_get_contents($path);
     if ($raw === false) {
@@ -75,7 +83,8 @@ function gt_lhd_image_path(?string $directory, array $record): ?string
         return null;
     }
     $path = $directory . '/' . $image;
-    return is_file($path) && !is_link($path) && is_readable($path) ? $path : null;
+    return is_file($path) && !is_link($path) && is_readable($path)
+        && (stat($path)['nlink'] ?? 0) === 1 ? $path : null;
 }
 
 function gt_lhd_valid_date(string $value): bool
@@ -230,6 +239,17 @@ function gt_lhd_save(string $directory, string $ref, string $version, array $rec
             do {
                 $ref = 'LHD-' . strtoupper(bin2hex(random_bytes(6)));
             } while (isset($records[$ref]));
+        }
+        if (is_file($directory . '/lhd-vehicles.json')) {
+            try {
+                gt_lhd_backup($directory, $records);
+            } catch (Throwable $error) {
+                // Withdrawing an unchanged listing takes priority over a failed backup.
+                if (($previous['published'] ?? false) !== true || $record !== array_replace($previous, ['published' => false])) {
+                    throw $error;
+                }
+                error_log('LHD listing withdrawn while backup was unavailable.');
+            }
         }
         $records[$ref] = $record;
         gt_lhd_write($directory, $records);

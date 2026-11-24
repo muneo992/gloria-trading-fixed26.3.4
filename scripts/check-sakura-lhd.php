@@ -233,6 +233,32 @@ try {
     verify($publish()['status'] === 303 && inFeed($ref) && request($image)['status'] === 200, 'publish');
     $stop = request($edit, http_build_query(fields($edit, $cookie) + ['action' => 'stop']), $cookie);
     verify($stop['status'] === 303 && !inFeed($ref) && request($image)['status'] === 404, 'stop_hidden');
+    $phase = 'isolated_recovery';
+    underLock($directory, static function (array $records) use ($directory, $backup, $marker, $ref, $today): void {
+        $masterHash = hash_file('sha256', $directory . '/lhd-vehicles.json');
+        foreach (glob(gt_lhd_backup_root($directory) . '/snapshot-*') ?: [] as $snapshot) {
+            $saved = gt_lhd_read($snapshot);
+            if (($saved[$ref]['make'] ?? null) !== $marker || !gt_lhd_eligible($saved[$ref], $today)) {
+                continue;
+            }
+            $recovery = $backup . '/recovered';
+            try {
+                $restored = gt_lhd_restore_copy($snapshot, $recovery);
+                verify($restored[$ref]['published'] === true && $restored[$ref]['expires_on'] === $today
+                    && gt_lhd_image_path($recovery, $restored[$ref]) !== null, 'recovered_state_or_image');
+                verify(($records[$ref]['published'] ?? true) === false
+                    && hash_file('sha256', $directory . '/lhd-vehicles.json') === $masterHash, 'live_master_unchanged');
+            } finally {
+                if (is_dir($recovery)) {
+                    gt_lhd_remove_snapshot($recovery);
+                }
+            }
+            echo 'lhd_isolated_restore_json_image_state_expiry_ok' . PHP_EOL;
+            return;
+        }
+        throw new RuntimeException('published_recovery_snapshot_missing');
+    });
+    $phase = 'publish_stop_expiry';
     verify($publish()['status'] === 303, 'republish');
     underLock($directory, static function (array $records) use ($directory, $ref, $marker): void {
         verify(($records[$ref]['make'] ?? null) === $marker, 'fixture_changed');
@@ -268,6 +294,14 @@ try {
                     }
                     foreach (array_filter($images) as $path) {
                         verify(unlink($path), 'fixture_photo_cleanup');
+                    }
+                }
+                foreach (glob($directory . '/backups/snapshot-*') ?: [] as $snapshot) {
+                    foreach (gt_lhd_read($snapshot) as $saved) {
+                        if (($saved['make'] ?? null) === $marker) {
+                            gt_lhd_remove_snapshot($snapshot);
+                            break;
+                        }
                     }
                 }
             });
