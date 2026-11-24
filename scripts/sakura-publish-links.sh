@@ -27,6 +27,7 @@ done
 pages=(
   index.html
   catalog.html
+  lhd.html
   about.html
   contact.html
   dealers.html

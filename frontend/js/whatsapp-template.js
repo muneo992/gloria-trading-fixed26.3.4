@@ -24,7 +24,7 @@ Monthly Purchase Volume: ${formatRFQValue(getRFQValue("monthly_volume"))}
 Target Resale Market: ${formatRFQValue(getRFQValue("target_resale_market"))}
 
 Vehicle / Sourcing Request
-Make: ${formatRFQValue(getRFQValue("make"))}
+${rfqSourcingLines()}Make: ${formatRFQValue(getRFQValue("make"))}
 Model: ${formatRFQValue(getRFQValue("model"))}
 Preferred Year Range: ${formatRFQValue(getRFQValue("year"))}
 Preferred Mileage: ${formatRFQValue(getRFQValue("mileage"))}
@@ -33,8 +33,7 @@ Transmission: ${formatRFQValue(getRFQValue("transmission"), "No preference")}
 Intended Use: ${formatRFQValue(getRFQValue("intended_use"))}
 Purchase Timing: ${formatRFQValue(getRFQValue("purchase_timing"))}
 Preferred Trade Term: ${formatRFQValue(getRFQValue("trade_term"))}
-Need Auction Sheet: ${formatRFQValue(getRFQValue("auction_sheet"))}
-Preferred Models List: ${formatRFQValue(getRFQValue("preferred_models"))}
+${uaeLhd ? "" : `Need Auction Sheet: ${formatRFQValue(getRFQValue("auction_sheet"))}\n`}Preferred Models List: ${formatRFQValue(getRFQValue("preferred_models"))}
 
 Destination
 Country: ${formatRFQValue(getRFQValue("country"))}
