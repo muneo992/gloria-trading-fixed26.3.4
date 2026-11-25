@@ -1,264 +1,83 @@
-name: Deploy main to Sakura production
-
+name: LHD release backup operations
 on:
   workflow_dispatch:
     inputs:
-      private_data:
-        description: "prepare copies the live 26-vehicle production master on the server; deploy syncs code only after that private master checks as 26"
-        required: true
+      mode:
         type: choice
-        default: deploy
-        options:
-          - prepare
-          - deploy
-      confirm:
-        description: "PREPARE_WA_PRODUCTION_PRIVATE or DEPLOY_PRODUCTION"
+        options: [backup, schedule]
         required: true
-        type: string
-
 permissions:
   contents: read
-
 concurrency:
   group: sakura-gloria-production-deploy
   cancel-in-progress: false
-
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Validate confirmation
-        env:
-          CONFIRM_INPUT: ${{ inputs.confirm }}
-          PRIVATE_DATA: ${{ inputs.private_data }}
-        run: |
-          set -euo pipefail
-          set +x
-          case "${PRIVATE_DATA}:${CONFIRM_INPUT}" in
-            deploy:DEPLOY_PRODUCTION|prepare:PREPARE_WA_PRODUCTION_PRIVATE)
-              ;;
-            *)
-              echo "Confirmation text did not match the selected private_data action. Stopped."
-              exit 1
-              ;;
-          esac
-
-  check-production-script:
-    needs: validate
+  operate:
+    if: ${{ github.ref == 'refs/heads/ops/lhd-release-24' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    steps:
-      - name: Checkout workflow ref
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-
-      - name: Install PHP CLI
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y php-cli
-
-      - name: Check the production private prepare script
-        run: bash scripts/check-prepare-west-africa-production-private.sh
-
-  reject-deploy-off-main:
-    needs: validate
-    if: ${{ inputs.private_data == 'deploy' && github.ref != 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop code deploy before the branch is main
-        run: |
-          echo "Production code deploy runs only from main after the private master count is 26."
-          exit 1
-
-  prepare:
-    needs: check-production-script
-    if: ${{ inputs.private_data == 'prepare' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout the prepare script
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-
-      - name: Setup SSH key and known hosts
-        run: |
-          set -euo pipefail
-          set +x
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/sakura_deploy_key
-          chmod 600 ~/.ssh/sakura_deploy_key
-          ssh-keyscan -p "${{ secrets.SAKURA_PORT || '22' }}" -H "${{ secrets.SAKURA_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Copy the live production master outside the web root
-        run: |
-          set -euo pipefail
-          set +x
-          ssh -T \
-            -i ~/.ssh/sakura_deploy_key \
-            -p "${{ secrets.SAKURA_PORT || '22' }}" \
-            -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes \
-            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
-            "bash --noprofile --norc -se -- prepare /home/gltr/www/gloria-site /home/gltr/private/west-africa" \
-            < scripts/prepare-west-africa-production-private.sh
-
-  deploy-production:
-    name: Deploy to Sakura production with backup
-    needs: check-production-script
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' && inputs.private_data == 'deploy' && inputs.confirm == 'DEPLOY_PRODUCTION' }}
-
     env:
-      SAKURA_PROD_PATH: /home/gltr/www/gloria-site
-      SAKURA_BACKUP_BASE: /home/gltr/backups/site
-
+      MODE: ${{ inputs.mode }}
+      PROD_PATH: ${{ secrets.SAKURA_PROD_PATH }}
+      SSH_HOST: ${{ secrets.SAKURA_HOST }}
+      SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
+      SSH_USER: ${{ secrets.SAKURA_USER }}
+      SSH_KEY: ${{ secrets.SAKURA_SSH_KEY }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Validate branch and confirmation
-        run: |
-          echo "Deploy source ref: $GITHUB_REF"
-          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            echo "This workflow deploys only refs/heads/main. Select the main branch when running it manually."
-            exit 1
-          fi
-          if [ "${{ inputs.confirm }}" != "DEPLOY_PRODUCTION" ]; then
-            echo "Confirmation text did not match. Deployment stopped."
-            exit 1
-          fi
-          if [ "$SAKURA_PROD_PATH" != "/home/gltr/www/gloria-site" ]; then
-            echo "Production destination must stay outside the private data directory."
-            exit 1
-          fi
-          case "/home/gltr/private/west-africa" in
-            "$SAKURA_PROD_PATH"|"$SAKURA_PROD_PATH"/*)
-              echo "Private data directory is inside the web root. Deployment stopped."
-              exit 1
-              ;;
-          esac
-
-      - name: Install rsync
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync
-
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SAKURA_SSH_KEY }}" > ~/.ssh/sakura_deploy_key
-          chmod 600 ~/.ssh/sakura_deploy_key
-          ssh-keyscan -p "${{ secrets.SAKURA_PORT || '22' }}" -H "${{ secrets.SAKURA_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Require the production private master to contain 26 vehicles
+      - name: Back up production or register daily LHD backup
         run: |
           set -euo pipefail
           set +x
-          ssh -T \
-            -i ~/.ssh/sakura_deploy_key \
-            -p "${{ secrets.SAKURA_PORT || '22' }}" \
-            -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes \
-            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
-            "bash --noprofile --norc -se -- check /home/gltr/www/gloria-site /home/gltr/private/west-africa" \
-            < scripts/prepare-west-africa-production-private.sh
-
-      - name: Backup current production site
-        run: |
-          TS="$(date +%Y%m%d-%H%M%S)"
-          echo "BACKUP_TS=$TS" >> "$GITHUB_ENV"
-          ssh \
-            -i ~/.ssh/sakura_deploy_key \
-            -p "${{ secrets.SAKURA_PORT || '22' }}" \
-            -o StrictHostKeyChecking=yes \
-            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
-            "set -e; test -d '$SAKURA_PROD_PATH'; mkdir -p '$SAKURA_BACKUP_BASE'; tar -C '$SAKURA_PROD_PATH' -czf '$SAKURA_BACKUP_BASE/gloria-site-before-$TS.tar.gz' .; ls -lh '$SAKURA_BACKUP_BASE/gloria-site-before-$TS.tar.gz'"
-
-      - name: Deploy main to production by rsync
-        run: |
-          rsync -azv \
-            --human-readable \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='.DS_Store' \
-            --exclude='Thumbs.db' \
-            --exclude='node_modules/' \
-            --exclude='/east-africa/' \
-            --exclude='/south-africa/' \
-            --exclude='netlify.toml' \
-            --exclude='*.zip' \
-            --exclude='admin/password.txt' \
-            --exclude='admin/.htpasswd' \
-            --exclude='/frontend/data/vehicles.json' \
-            --exclude='/vehicles.json' \
-            --exclude='/frontend/data/backup/' \
-            -e "ssh -i ~/.ssh/sakura_deploy_key -p ${{ secrets.SAKURA_PORT || '22' }} -o StrictHostKeyChecking=yes" \
-            ./ \
-            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}:$SAKURA_PROD_PATH/"
-
-      - name: Publish root symlinks for Sakura
-        run: |
-          ssh \
-            -i ~/.ssh/sakura_deploy_key \
-            -p "${{ secrets.SAKURA_PORT || '22' }}" \
-            -o StrictHostKeyChecking=yes \
-            "${{ secrets.SAKURA_USER }}@${{ secrets.SAKURA_HOST }}" \
-            "bash '$SAKURA_PROD_PATH/scripts/sakura-publish-links.sh' '$SAKURA_PROD_PATH'"
-
-      - name: Smoke test production pages
-        run: |
-          set -e
-          sleep 3
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/catalog.html"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/west-africa/ghana"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/west-africa/cote-divoire"
-          curl -sI --fail --max-time 20 "https://www.gloriatrading.com/west-africa/ivory-coast" | grep -i "^Location:" | grep -q "/west-africa/cote-divoire"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/ghana.html"
-          curl -sI --fail --max-time 20 "https://www.gloriatrading.com/ghana.html" | grep -i "^Location:" | grep -q "/west-africa/ghana"
-          curl -sI --fail --max-time 20 "https://www.gloriatrading.com/nigeria.html" | grep -i "^Location:" | grep -q "/west-africa/nigeria"
-          curl -sI --fail --max-time 20 "https://www.gloriatrading.com/benin.html" | grep -i "^Location:" | grep -q "/west-africa/benin"
-          curl -sI --fail --max-time 20 "https://www.gloriatrading.com/ivory-coast.html" | grep -i "^Location:" | grep -q "/west-africa/cote-divoire"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/vehicle-detail.html?ref=REF-019"
-          curl -I --fail --max-time 20 "https://www.gloriatrading.com/images/vehicles/REF-019-1.jpg"
-          code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "https://www.gloriatrading.com/private/west-africa/vehicles.json")"
-          if [ "$code" != "404" ]; then
-            echo "Expected HTTP 404 but received $code from the private data URL." >&2
-            exit 1
+          umask 077
+          test "$PROD_PATH" = /home/gltr/www/gloria-site
+          case "$MODE" in backup|schedule) ;; *) exit 1;; esac
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/release_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/release_key -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" "bash --noprofile --norc -se -- $MODE" <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          web=/home/gltr/www/gloria-site
+          private=/home/gltr/private/west-africa
+          archive=/home/gltr/backups/site
+          for d in "$web" "$private" "$archive"; do
+            test -d "$d"
+            test "$(realpath "$d")" = "$d"
+          done
+          if [ "$1" = backup ]; then
+            test ! -e "$private/lhd" && test ! -L "$private/lhd"
+            test -f "$private/vehicles.json" && test ! -L "$private/vehicles.json"
+            bundle="$(mktemp -d "$archive/gloria-lhd-release-XXXXXX")"
+            tar -C "$web" -czf "$bundle/site.tar.gz" .
+            tar -C "$private" -czf "$bundle/private-west-africa.tar.gz" .
+            for f in "$bundle/"*.tar.gz; do gzip -t "$f"; tar -tzf "$f" >/dev/null; done
+            tar -xOzf "$bundle/private-west-africa.tar.gz" ./vehicles.json | php -r '
+              $data=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR);
+              exit(count($data["vehicles"] ?? []) === 26 ? 0 : 1);'
+            echo "backup_bundle=$bundle"
+            echo "production_lhd_master_absent; production_rhd_backup_26_verified"
+          else
+            test -f "$web/scripts/backup-west-africa-lhd.php"
+            phpbin="$(command -v php)"
+            test -x "$phpbin"
+            "$phpbin" "$web/scripts/backup-west-africa-lhd.php"
+            tmp="$(mktemp -d "$archive/lhd-cron-XXXXXX")"
+            trap 'rm -f "$tmp/current" "$tmp/new" "$tmp/readback" "$tmp/error"; rmdir "$tmp"' EXIT
+            if ! crontab -l >"$tmp/current" 2>"$tmp/error"; then
+              grep -qi 'no crontab' "$tmp/error" || exit 1
+              : >"$tmp/current"
+            fi
+            entry="17 3 * * * $phpbin $web/scripts/backup-west-africa-lhd.php >/dev/null # gloria-lhd-daily-backup"
+            if grep -Fq 'gloria-lhd-daily-backup' "$tmp/current"; then
+              grep -Fxq "$entry" "$tmp/current"
+            else
+              { cat "$tmp/current"; printf '\n%s\n' "$entry"; } >"$tmp/new"
+              crontab "$tmp/new"
+            fi
+            crontab -l >"$tmp/readback"
+            grep -Fxq "$entry" "$tmp/readback"
+            echo "daily_lhd_backup_registered_03_17_server_time"
+            date '+server_timezone=%Z %z'
           fi
-          code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 20 "https://www.gloriatrading.com/frontend/data/vehicles.json")"
-          if [ "$code" != "403" ]; then
-            echo "Expected HTTP 403 but received $code from the direct master URL." >&2
-            exit 1
-          fi
-          python3 - <<'PY'
-          import json
-          import urllib.request
-          url = "https://www.gloriatrading.com/data/vehicles.json"
-          banned = {
-              "auction_price_jpy",
-              "purchase_price_usd",
-              "profit_usd",
-              "target_price_usd",
-              "customer_name",
-              "chassis_no",
-              "basis_from",
-              "basis_to",
-              "quote_spec_data",
-          }
-          with urllib.request.urlopen(url, timeout=20) as response:
-              payload = json.load(response)
-          vehicles = payload.get("vehicles")
-          if not isinstance(vehicles, list) or len(vehicles) != 26:
-              raise SystemExit("feed_count_unexpected")
-          for row in vehicles:
-              if not isinstance(row, dict) or banned.intersection(row):
-                  raise SystemExit("private_field_present")
-          print("public_feed_vehicles=26")
-          PY
+          REMOTE
