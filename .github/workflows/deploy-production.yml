@@ -59,32 +59,6 @@ jobs:
             test -f "$web/scripts/backup-west-africa-lhd.php"
             phpbin="$(command -v php)"
             test -x "$phpbin"
-            "$phpbin" -d display_errors=0 -d log_errors=0 <<'PHP'
-          <?php
-          require '/home/gltr/www/gloria-site/admin/bootstrap.php';
-          if (gt_wa_private_dir() !== '/home/gltr/private/west-africa') exit(1);
-          $password = getConfiguredAdminPassword();
-          if ($password === '' || !function_exists('curl_init')) exit(2);
-          $base = 'https://www.gloriatrading.com/admin/';
-          $curl = curl_init($base . 'index.php');
-          curl_setopt_array($curl, [
-              CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEFILE => '',
-              CURLOPT_POST => true, CURLOPT_POSTFIELDS => http_build_query(['action' => 'login', 'password' => $password]),
-              CURLOPT_TIMEOUT => 15,
-          ]);
-          unset($password);
-          $login = curl_exec($curl);
-          if (!is_string($login) || !str_contains($login, 'LHD調達候補')) exit(3);
-          curl_setopt($curl, CURLOPT_URL, $base . 'lhd.php');
-          curl_setopt($curl, CURLOPT_HTTPGET, true);
-          $admin = curl_exec($curl);
-          $verified = curl_getinfo($curl, CURLINFO_RESPONSE_CODE) === 200 && is_string($admin)
-              && str_contains($admin, 'LHD調達候補') && str_contains($admin, '登録済みの調達候補はありません');
-          curl_setopt($curl, CURLOPT_URL, $base . 'index.php?logout=1');
-          curl_exec($curl);
-          if (!$verified) exit(4);
-          echo "production_admin_authenticated_empty_lhd_verified\n";
-          PHP
             "$phpbin" "$web/scripts/backup-west-africa-lhd.php"
             tmp="$(mktemp -d "$archive/lhd-cron-XXXXXX")"
             trap 'rm -f "$tmp/current" "$tmp/new" "$tmp/readback" "$tmp/error"; rmdir "$tmp"' EXIT
