@@ -1,0 +1,28 @@
+name: Check West Africa LHD sourcing
+
+on:
+  pull_request:
+    paths:
+      - 'admin/**'
+      - 'frontend/**'
+      - 'scripts/check-west-africa-lhd.mjs'
+      - '.github/workflows/check-west-africa-lhd.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lhd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PHP CLI and GD
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-gd
+      - name: Verify the LHD flow with isolated test fixtures
+        run: node scripts/check-west-africa-lhd.mjs

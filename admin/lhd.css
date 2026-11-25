@@ -1,0 +1,15 @@
+:root { color-scheme: light; font: 16px/1.55 system-ui, sans-serif; color: #172840; background: #f0f4f8; }
+body { margin: 0; padding: 1rem; }
+main { max-width: 58rem; margin: auto; }
+a { color: #14579a; }
+form, #preview, .records li { padding: 1rem; background: white; border: 1px solid #d7e1ec; border-radius: .5rem; margin-bottom: 1rem; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; }
+label { display: block; font-weight: 600; margin-bottom: .75rem; }
+input, select, button { font: inherit; }
+input:not([type=checkbox]), select { width: 100%; box-sizing: border-box; display: block; margin-top: .3rem; padding: .5rem; border: 1px solid #8799ad; border-radius: .3rem; }
+.check { margin-top: 1rem; }
+button, .button { background: #15538e; color: white; border: 0; padding: .6rem 1rem; border-radius: .35rem; text-decoration: none; display: inline-block; cursor: pointer; }
+.records { list-style: none; padding: 0; }
+.records span { display: block; color: #3d5169; }
+.notice { background: #fff3db; padding: .7rem; }
+img { display: block; max-width: 100%; max-height: 18rem; object-fit: contain; }

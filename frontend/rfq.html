@@ -89,8 +89,8 @@
 
   <section class="page-header">
     <div class="container">
-      <h1>Dealer RFQ</h1>
-      <p>Tell us your buyer type, company details, resale market, preferred models, monthly volume, and trade term. We will contact you shortly via WhatsApp or email.</p>
+      <h1 id="rfq-heading">Dealer RFQ</h1>
+      <p id="rfq-intro">Tell us your buyer type, company details, resale market, preferred models, monthly volume, and trade term. We will contact you shortly via WhatsApp or email.</p>
     </div>
   </section>
 
@@ -103,7 +103,7 @@
         <div class="form-card">
           <div class="notice-box" style="margin-bottom: 1.5rem;">
             <h4>For an Accurate Dealer Quote</h4>
-            <p>To prepare a practical dealer quotation, please tell us your buyer type, company name, monthly purchase volume, target resale market, preferred trade term, destination port, budget, model list, and whether you need auction sheet confirmation.</p>
+            <p id="rfq-form-intro">To prepare a practical dealer quotation, please tell us your buyer type, company name, monthly purchase volume, target resale market, preferred trade term, destination port, budget, model list, and whether you need auction sheet confirmation.</p>
           </div>
 
           <form id="rfq-form">
@@ -295,7 +295,7 @@
 
         <div class="notice-box" style="margin-top: 2rem;">
           <h4>Note</h4>
-          <p>All vehicles we export are <strong>Right-Hand Drive (RHD)</strong> only. Please confirm RHD is legal in your country before submitting a request.</p>
+          <p id="rfq-import-note">Our Japan sourcing service covers <strong>Right-Hand Drive (RHD)</strong> vehicles. Please confirm local import requirements before submitting a request.</p>
         </div>
 
       </div>
@@ -340,7 +340,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <p>&copy; 2026 Gloria Trading. All rights reserved. | RHD only. Reference vehicles are past transaction examples, not in stock.</p>
+        <p>&copy; 2026 Gloria Trading. All rights reserved. | Japan RHD reference vehicles are past transaction examples.</p>
       </div>
     </div>
   </footer>
@@ -351,7 +351,7 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-  <script src="js/rfq-form.js"></script>
-  <script src="js/whatsapp-template.js"></script>
+  <script src="js/rfq-form.js?v=lhd-v1"></script>
+  <script src="js/whatsapp-template.js?v=lhd-v1"></script>
 </body>
 </html>

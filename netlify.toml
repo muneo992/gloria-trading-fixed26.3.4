@@ -2,6 +2,13 @@
   publish = "frontend"
   command = "node scripts/build-netlify-public-data.js"
 
+# The static site offers the LHD sourcing RFQ without live Sakura candidates.
+[[redirects]]
+  from = "/data/lhd-vehicle-feed.php"
+  to = "/data/lhd-static.json"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]

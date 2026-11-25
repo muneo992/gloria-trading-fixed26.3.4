@@ -488,11 +488,14 @@ assert_regular_directory_or_private() {
 
 check_private() {
   local source="$WEB/frontend/data/vehicles.json"
-  assert_production_absent
   assert_real_directory "$WEB" "web_root"
-  assert_regular_directory_or_private
+  # The read-only check also runs after the production private store exists.
+  # Resolve the test path itself rather than requiring its sibling to be absent.
+  assert_real_directory "$PRIV" "private_root"
   assert_regular_file "$source" "public_master"
   assert_regular_file "$PRIV/vehicles.json" "private_master"
+  php -r 'exit(stat($argv[1])["nlink"] === 1 ? 0 : 1);' "$PRIV/vehicles.json" \
+    || die "private_master_linked"
   local summary
   summary="$(json_vehicle_count "$PRIV/vehicles.json")"
   json_vehicle_count "$source" >/dev/null
@@ -501,7 +504,6 @@ check_private() {
   fi
   log "private_$summary"
   log "public_master=kept"
-  assert_production_absent
   log "check_ok"
 }
 

@@ -20,6 +20,10 @@ on:
         description: "Branch, tag, or commit SHA. A short SHA is expanded before checkout."
         required: true
         type: string
+      verify_lhd:
+        description: "Run West Africa LHD verification after test deployment"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -201,6 +205,7 @@ jobs:
             --exclude='.git*' \
             --exclude='.github' \
             --exclude='/wa-workflow/' \
+            --exclude='/scripts/check-sakura-lhd.php' \
             --exclude='admin/.htpasswd' \
             --exclude='admin/password.txt' \
             --exclude='/frontend/data/vehicles.json' \
@@ -256,6 +261,18 @@ jobs:
           php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'
           php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'
           REMOTE
+
+      - name: Verify LHD and RHD on Sakura test
+        if: ${{ inputs.private_data == 'deploy' && inputs.verify_lhd }}
+        run: |
+          set -euo pipefail
+          if ! ssh -T -i ~/.ssh/id_rsa -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'php -d display_errors=0 -d log_errors=0' \
+            < scripts/check-sakura-lhd.php | tee "$RUNNER_TEMP/sakura-lhd-result"; then
+            STATUS="$(grep -E '^(verification_failed=|verification_cleanup_failed)' "$RUNNER_TEMP/sakura-lhd-result" | head -n 1 || true)"
+            echo "::error::${STATUS:-Sakura verification did not start or returned no status.}"
+            exit 1
+          fi
 
       - name: Smoke test gloria-test site
         if: ${{ inputs.private_data == 'deploy' }}

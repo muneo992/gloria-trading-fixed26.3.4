@@ -170,7 +170,8 @@ tr:hover td { background: #fafbff; }
   <div class="nav">
     <a href="images-upload.php">🖼 画像管理</a>
     <a href="uploads.php">📁 汎用アップロード</a>
-    <a href="import.php">📥 インポート</a>
+                <a href="import.php">📥 インポート</a>
+                <a href="lhd.php">LHD調達候補</a>
     <a href="export.php">📤 エクスポート</a>
     <a href="change-password.php">🔐 パスワード変更</a>
     <a href="/" target="_blank">サイトを見る</a>
