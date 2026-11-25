@@ -44,7 +44,7 @@ jobs:
             test "$(realpath "$d")" = "$d"
           done
           if [ "$1" = backup ]; then
-            test ! -e "$private/lhd" && test ! -L "$private/lhd"
+            test ! -L "$private/lhd"
             test -f "$private/vehicles.json" && test ! -L "$private/vehicles.json"
             bundle="$(mktemp -d "$archive/gloria-lhd-release-XXXXXX")"
             tar -C "$web" -czf "$bundle/site.tar.gz" .
@@ -53,8 +53,12 @@ jobs:
             tar -xOzf "$bundle/private-west-africa.tar.gz" ./vehicles.json | php -r '
               $data=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR);
               exit(count($data["vehicles"] ?? []) === 26 ? 0 : 1);'
+            test -d "$web/frontend/images/vehicles"
+            tar -tzf "$bundle/site.tar.gz" > "$bundle/site-files.txt"
+            grep -Fq "./frontend/images/vehicles/" "$bundle/site-files.txt"
+            (cd "$bundle" && sha256 site.tar.gz private-west-africa.tar.gz > SHA256.txt)
             echo "backup_bundle=$bundle"
-            echo "production_lhd_master_absent; production_rhd_backup_26_verified"
+            echo "production_private_archive_and_rhd_26_verified"
           else
             test -f "$web/scripts/backup-west-africa-lhd.php"
             phpbin="$(command -v php)"
