@@ -319,7 +319,7 @@ tr:hover td { background: #fafbff; }
   <div class="brand">Gloria Trading 管理画面</div>
   <div class="nav">
     <a href="index.php">← 車両一覧</a>
-    <a href="../index.html" target="_blank">サイトを見る</a>
+    <a href="../catalog.html" target="_blank" rel="noopener">サイトを見る</a>
     <a href="index.php?logout=1">ログアウト</a>
   </div>
 </div>

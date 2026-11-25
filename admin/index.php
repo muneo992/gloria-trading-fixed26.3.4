@@ -174,7 +174,7 @@ tr:hover td { background: #fafbff; }
                 <a href="import.php">📥 インポート</a>
     <a href="export.php">📤 エクスポート</a>
     <a href="change-password.php">🔐 パスワード変更</a>
-    <a href="/" target="_blank">サイトを見る</a>
+    <a href="../catalog.html" target="_blank" rel="noopener">サイトを見る</a>
     <a href="?logout=1">ログアウト</a>
   </div>
 </div>

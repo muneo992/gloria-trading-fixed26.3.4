@@ -262,7 +262,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <a href="index.php">← 車両一覧</a>
     <a href="images-assign.php">画像割り当て</a>
     <a href="uploads.php">汎用アップロード</a>
-    <a href="../index.html" target="_blank">サイトを見る</a>
+    <a href="../catalog.html" target="_blank" rel="noopener">サイトを見る</a>
     <a href="index.php?logout=1">ログアウト</a>
   </div>
 </div>

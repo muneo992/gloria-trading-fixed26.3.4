@@ -88,7 +88,7 @@ usort($files, function ($a, $b) {
 </style>
 </head>
 <body>
-<div class="topbar"><div class="brand">Gloria Trading 管理画面</div><div class="nav"><a href="index.php">← 車両一覧</a><a href="images-upload.php">画像管理</a><a href="../index.html" target="_blank">サイトを見る</a><a href="index.php?logout=1">ログアウト</a></div></div>
+<div class="topbar"><div class="brand">Gloria Trading 管理画面</div><div class="nav"><a href="index.php">← 車両一覧</a><a href="images-upload.php">画像管理</a><a href="../catalog.html" target="_blank" rel="noopener">サイトを見る</a><a href="index.php?logout=1">ログアウト</a></div></div>
 <div class="container">
   <div class="page-header"><h1>汎用アップロード</h1><p>見積もりやカタログ車両とは直接関係しないファイルを保存できます。保存先は <code>uploads/general/</code> です。</p></div>
   <?php foreach ($messages as $m): ?><div class="alert alert-success"><?= htmlspecialchars($m) ?></div><?php endforeach; ?>

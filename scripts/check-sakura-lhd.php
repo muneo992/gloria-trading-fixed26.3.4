@@ -189,9 +189,13 @@ try {
     verify(str_contains($login['body'], 'LHD調達候補'), 'rhd_admin_authenticated');
     verify(str_contains($login['body'], '車両管理の切り替え')
         && str_contains($login['body'], 'href="lhd.php"'), 'rhd_admin_switch');
+    verify(str_contains($login['body'], 'href="../catalog.html"')
+        && request('/catalog.html')['status'] === 200, 'rhd_admin_public_link');
     $lhdAdmin = request(ADMIN, null, $cookie);
     verify($lhdAdmin['status'] === 200 && str_contains($lhdAdmin['body'], '車両管理の切り替え')
         && str_contains($lhdAdmin['body'], 'href="index.php"'), 'lhd_admin_switch');
+    verify(str_contains($lhdAdmin['body'], 'href="../lhd.html"')
+        && request('/lhd.html')['status'] === 200, 'lhd_admin_public_link');
     $new = ADMIN . '?ref=';
     $inputs = fields($new, $cookie);
     verify(request($new, 'action=draft', $cookie)['status'] === 403, 'csrf_missing');
