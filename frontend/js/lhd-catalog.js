@@ -3,13 +3,6 @@
 const lhdFeed = "data/lhd-vehicle-feed.php";
 const lhdStatus = document.getElementById("lhd-status");
 const lhdVehicles = document.getElementById("lhd-vehicles");
-const menuButton = document.getElementById("navToggle");
-const menu = document.getElementById("navMenu");
-
-menuButton.addEventListener("click", () => {
-    menuButton.setAttribute("aria-expanded", String(menu.classList.toggle("open")));
-});
-
 function appendText(parent, tag, value) {
     const element = document.createElement(tag);
     element.textContent = value;
