@@ -1,0 +1,3 @@
+.sourcing-nav { display: flex; flex-wrap: wrap; gap: .6rem; margin: 0 0 1rem; }
+.sourcing-nav a { display: inline-flex; align-items: center; min-height: 44px; padding: .4rem .8rem; border: 1px solid #15538e; border-radius: .35rem; background: white; color: #15538e; font-weight: 700; }
+.sourcing-nav a[aria-current="page"] { background: #15538e; color: white; }

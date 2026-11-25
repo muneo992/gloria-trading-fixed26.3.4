@@ -699,7 +699,7 @@ textarea { resize: vertical; min-height: 80px; }
   <div class="nav">
     <a href="index.php">← 車両一覧</a>
     <a href="uploads.php">汎用アップロード</a>
-    <a href="../index.html" target="_blank">サイトを見る</a>
+    <a href="../catalog.html" target="_blank" rel="noopener">サイトを見る</a>
     <a href="index.php?logout=1">ログアウト</a>
   </div>
 </div>

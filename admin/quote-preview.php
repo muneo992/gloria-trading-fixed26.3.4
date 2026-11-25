@@ -164,7 +164,7 @@ td.money { text-align: right; font-weight: 700; font-variant-numeric: tabular-nu
   <div class="nav">
     <a href="index.php">車両一覧</a>
     <a href="edit.php<?= $vehicle ? '?ref=' . urlencode($vehicle['ref_id']) : '' ?>">編集画面</a>
-    <a href="../index.html" target="_blank">サイトを見る</a>
+    <a href="../catalog.html" target="_blank" rel="noopener">サイトを見る</a>
     <a href="index.php?logout=1">ログアウト</a>
   </div>
 </div>

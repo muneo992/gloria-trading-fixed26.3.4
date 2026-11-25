@@ -168,7 +168,10 @@ try {
     verify(gt_wa_private_dir() === PRIVATE_ROOT && gt_wa_site_root() === WEB, 'test_paths_only');
     verify(function_exists('curl_init'), 'php_curl_missing');
     $phase = 'public_baseline';
-    verify(str_contains(request('/lhd.html')['body'], 'LHD Vehicle Sourcing'), 'lhd_page');
+    $page = request('/lhd.html');
+    verify($page['status'] === 200
+        && preg_match('/<h1>\s*LHD (?:Cars|Vehicles|Vehicle Sourcing)\s*<\/h1>/i', $page['body']) === 1
+        && str_contains($page['body'], 'rfq.html?sourcing=uae-lhd'), 'lhd_page');
     verify(request(ADMIN)['status'] === 303, 'lhd_anonymous_admin');
     verify(request('/frontend/data/vehicles.json')['status'] === 403, 'rhd_raw_master_denied');
     $rhd = request('/data/vehicles.json');
@@ -184,6 +187,15 @@ try {
     [$login, $cookie] = login($password);
     unset($password);
     verify(str_contains($login['body'], 'LHD調達候補'), 'rhd_admin_authenticated');
+    verify(str_contains($login['body'], '車両管理の切り替え')
+        && str_contains($login['body'], 'href="lhd.php"'), 'rhd_admin_switch');
+    verify(str_contains($login['body'], 'href="../catalog.html"')
+        && request('/catalog.html')['status'] === 200, 'rhd_admin_public_link');
+    $lhdAdmin = request(ADMIN, null, $cookie);
+    verify($lhdAdmin['status'] === 200 && str_contains($lhdAdmin['body'], '車両管理の切り替え')
+        && str_contains($lhdAdmin['body'], 'href="index.php"'), 'lhd_admin_switch');
+    verify(str_contains($lhdAdmin['body'], 'href="../lhd.html"')
+        && request('/lhd.html')['status'] === 200, 'lhd_admin_public_link');
     $new = ADMIN . '?ref=';
     $inputs = fields($new, $cookie);
     verify(request($new, 'action=draft', $cookie)['status'] === 403, 'csrf_missing');
