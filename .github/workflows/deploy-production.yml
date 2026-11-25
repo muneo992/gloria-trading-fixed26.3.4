@@ -18,7 +18,6 @@ jobs:
     timeout-minutes: 10
     env:
       MODE: ${{ inputs.mode }}
-      PROD_PATH: ${{ secrets.SAKURA_PROD_PATH }}
       SSH_HOST: ${{ secrets.SAKURA_HOST }}
       SSH_PORT: ${{ secrets.SAKURA_PORT || '22' }}
       SSH_USER: ${{ secrets.SAKURA_USER }}
@@ -29,7 +28,6 @@ jobs:
           set -euo pipefail
           set +x
           umask 077
-          test "$PROD_PATH" = /home/gltr/www/gloria-site
           case "$MODE" in backup|schedule) ;; *) exit 1;; esac
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/release_key
