@@ -168,7 +168,10 @@ try {
     verify(gt_wa_private_dir() === PRIVATE_ROOT && gt_wa_site_root() === WEB, 'test_paths_only');
     verify(function_exists('curl_init'), 'php_curl_missing');
     $phase = 'public_baseline';
-    verify(str_contains(request('/lhd.html')['body'], 'LHD Vehicle Sourcing'), 'lhd_page');
+    $page = request('/lhd.html');
+    verify($page['status'] === 200
+        && preg_match('/<h1>\s*LHD (?:Vehicles|Vehicle Sourcing)\s*<\/h1>/i', $page['body']) === 1
+        && str_contains($page['body'], 'rfq.html?sourcing=uae-lhd'), 'lhd_page');
     verify(request(ADMIN)['status'] === 303, 'lhd_anonymous_admin');
     verify(request('/frontend/data/vehicles.json')['status'] === 403, 'rhd_raw_master_denied');
     $rhd = request('/data/vehicles.json');
