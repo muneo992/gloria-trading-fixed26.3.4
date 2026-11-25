@@ -110,6 +110,7 @@ $vehicles = $data['vehicles'];
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>車両管理 - Gloria Trading Admin</title>
+<link rel="stylesheet" href="sourcing-nav.css">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
@@ -171,7 +172,6 @@ tr:hover td { background: #fafbff; }
     <a href="images-upload.php">🖼 画像管理</a>
     <a href="uploads.php">📁 汎用アップロード</a>
                 <a href="import.php">📥 インポート</a>
-                <a href="lhd.php">LHD調達候補</a>
     <a href="export.php">📤 エクスポート</a>
     <a href="change-password.php">🔐 パスワード変更</a>
     <a href="/" target="_blank">サイトを見る</a>
@@ -180,6 +180,7 @@ tr:hover td { background: #fafbff; }
 </div>
 
 <div class="container">
+    <?php $sourcingSection = 'rhd'; require __DIR__ . '/sourcing-nav.php'; ?>
   <?php if (isset($_GET['deleted'])): ?>
   <div class="alert alert-success">✅ 車両データを削除しました。</div>
   <?php endif; ?>

@@ -24,6 +24,10 @@ on:
         description: "Run West Africa LHD verification after test deployment"
         type: boolean
         default: false
+      sync_public_rhd:
+        description: "Append the seven missing public RHD references to Sakura test"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -206,6 +210,7 @@ jobs:
             --exclude='.github' \
             --exclude='/wa-workflow/' \
             --exclude='/scripts/check-sakura-lhd.php' \
+            --exclude='/scripts/sync-sakura-test-rhd.php' \
             --exclude='admin/.htpasswd' \
             --exclude='admin/password.txt' \
             --exclude='/frontend/data/vehicles.json' \
@@ -261,6 +266,13 @@ jobs:
           php -l '$EXPECTED_SAKURA_TEST_PATH/admin/vehicle-data.php'
           php '$EXPECTED_SAKURA_TEST_PATH/admin/health.php' | grep -q '^status: ok$'
           REMOTE
+
+      - name: Sync missing public RHD references into Sakura test
+        if: ${{ inputs.private_data == 'deploy' && inputs.sync_public_rhd }}
+        run: |
+          set -euo pipefail
+          ssh -T -i ~/.ssh/id_rsa -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" 'php -d display_errors=0 -d log_errors=0' < scripts/sync-sakura-test-rhd.php
 
       - name: Verify LHD and RHD on Sakura test
         if: ${{ inputs.private_data == 'deploy' && inputs.verify_lhd }}

@@ -125,10 +125,12 @@ if ($isPost && ($_POST['action'] ?? '') === 'draft' && $error !== '') {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>LHD調達候補 | Gloria Trading 管理</title>
   <link rel="stylesheet" href="lhd.css">
+  <link rel="stylesheet" href="sourcing-nav.css">
 </head>
 <body>
 <main>
-  <nav><a href="index.php">RHD管理</a> · <a href="lhd.php">LHD一覧</a> · <a href="../lhd.html">公開ページ</a></nav>
+  <?php $sourcingSection = 'lhd'; require __DIR__ . '/sourcing-nav.php'; ?>
+  <p><a href="../lhd.html">LHD公開ページ</a></p>
   <h1>LHD調達候補</h1>
   <?php if ($error !== ''): ?><p role="alert" class="notice"><?= lhd_h($error) ?></p><?php endif; ?>
   <?php if (!$storageAvailable): ?><p role="status">西アフリカの非公開領域が未設定です。</p><?php endif; ?>
